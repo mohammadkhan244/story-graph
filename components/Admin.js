@@ -1,0 +1,284 @@
+'use client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import StoryMap, { fmt, signalColors } from './StoryMap';
+
+async function api(path, method = 'GET', body) {
+  const r = await fetch(path, { method, cache: 'no-store', headers: body ? { 'content-type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'Request failed'); e.status = r.status; throw e; }
+  return j;
+}
+
+function Armed({ label, armedLabel, onConfirm, className = 'quiet', disabled }) {
+  const [a, setA] = useState(false);
+  return (
+    <button type="button" className={a ? 'armed' : className} disabled={disabled}
+      onClick={() => { if (!a) { setA(true); setTimeout(() => setA(false), 4000); return; } setA(false); onConfirm(); }}>
+      {a ? armedLabel : label}
+    </button>
+  );
+}
+
+function Login({ configured, onDone }) {
+  const [pw, setPw] = useState(''); const [msg, setMsg] = useState('');
+  if (!configured) return <section className="panel narrow"><h2>Admin</h2><p>Set <span className="mono">ADMIN_PASSWORD</span> in your Vercel project settings, redeploy, then come back.</p></section>;
+  return (
+    <form className="panel narrow stack" onSubmit={async (e) => { e.preventDefault(); setMsg(''); try { await api('/api/admin/login', 'POST', { password: pw }); onDone(); } catch (er) { setMsg(er.message); } }}>
+      <h2>Admin sign-in</h2>
+      <div><label htmlFor="pw">Password</label><input id="pw" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} /></div>
+      <div className="row"><button type="submit">Sign in</button><span className="status warn">{msg}</span></div>
+    </form>
+  );
+}
+
+const pad = (n) => (n < 10 ? '0' + n : '' + n);
+const mmss = (ms) => { const s = Math.ceil(Math.max(0, ms) / 1000); return pad(Math.floor(s / 60)) + ':' + pad(s % 60); };
+const emptyAxis = { name: '', low: '', high: '', why: '' };
+
+export default function Admin() {
+  const [auth, setAuth] = useState(null);
+  const [list, setList] = useState([]);
+  const [selId, setSelId] = useState(null);
+  const [det, setDet] = useState(null);
+  const [status, setStatus] = useState({ t: '', warn: false });
+  const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [form, setForm] = useState({ title: '', prompt: '', signals: '', minutes: 10 });
+  const [nw, setNw] = useState({ title: '', prompt: '', signals: '', minutes: 10 });
+  const [axes, setAxes] = useState({ x: emptyAxis, y: emptyAxis });
+  const [cands, setCands] = useState([]);
+  const [selDot, setSelDot] = useState(null);
+  const [open, setOpen] = useState({});
+  const loadedFor = useRef(null);
+
+  const say = (t, warn = false) => setStatus({ t, warn });
+
+  const loadList = useCallback(async () => {
+    try { const j = await api('/api/admin/sessions'); setList(j.sessions); if (!selId && j.sessions[0]) setSelId(j.sessions[0].id); }
+    catch (e) { if (e.status === 401) setAuth({ admin: false, configured: true }); else say(e.message, true); }
+  }, [selId]);
+
+  const loadDet = useCallback(async (id) => {
+    if (!id) return;
+    try {
+      const j = await api(`/api/admin/sessions/${id}`);
+      setDet(j);
+      if (loadedFor.current !== id) {
+        loadedFor.current = id;
+        const s = j.session;
+        setForm({ title: s.title, prompt: s.prompt, signals: (s.signals || []).join(', '), minutes: s.minutes });
+        setAxes(s.axes ? { x: { ...emptyAxis, ...s.axes.x }, y: { ...emptyAxis, ...s.axes.y } } : { x: emptyAxis, y: emptyAxis });
+        setCands(s.cands || []); setSelDot(null);
+      }
+    } catch (e) { say(e.message, true); }
+  }, []);
+
+  useEffect(() => { api('/api/admin/login').then(setAuth).catch(() => setAuth({ admin: false, configured: false })); }, []);
+  useEffect(() => { if (auth && auth.admin) loadList(); }, [auth, loadList]);
+  useEffect(() => {
+    if (!auth || !auth.admin || !selId) return;
+    loadDet(selId);
+    const t = setInterval(() => { if (!document.hidden) loadDet(selId); }, 4000);
+    return () => clearInterval(t);
+  }, [auth, selId, loadDet]);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+
+  if (!auth) return <main className="wrap"><p className="note">Loading…</p></main>;
+  if (!auth.admin) return <main className="wrap"><header className="top"><h1>Story Map</h1><span className="chip">Admin</span></header><Login configured={auth.configured} onDone={() => setAuth({ admin: true, configured: true })} /></main>;
+
+  const s = det && det.session;
+  const stories = (det && det.stories) || [];
+  const link = s ? (typeof window !== 'undefined' ? window.location.origin : '') + (s.is_default ? '/' : `/s/${s.id}`) : '';
+  const endsAt = s && s.ends_at ? new Date(s.ends_at).getTime() : null;
+  const isOpen = s && s.status === 'open' && (!endsAt || now < endsAt);
+  const placed = stories.filter((x) => x.x != null).length;
+  const axesOK = ['x', 'y'].every((k) => axes[k].name && axes[k].low && axes[k].high);
+  const sameAxis = (a, b) => !!a && !!b && a.name === b.name && a.low === b.low && a.high === b.high;
+  const axesDirty = !!s && axesOK && !(s.axes && sameAxis(s.axes.x, axes.x) && sameAxis(s.axes.y, axes.y));
+  const points = stories.map((x) => ({ id: x.id, label: (x.name || '').trim() || 'Anonymous', signal: x.signal, x: x.x, y: x.y }));
+  const { tags, color } = signalColors(points);
+  const dot = stories.find((x) => x.id === selDot);
+
+  async function act(fn, label) {
+    setBusy(true); say(label + '…');
+    try { await fn(); await loadDet(selId); await loadList(); }
+    catch (e) { say(e.message, true); setBusy(false); return; }
+    setBusy(false);
+  }
+  const patch = (body, done) => act(async () => { await api(`/api/admin/sessions/${s.id}`, 'PATCH', body); say(done); }, 'Saving');
+  const sigArr = (t) => t.split(',').map((x) => x.trim()).filter(Boolean);
+
+  return (
+    <main className="wrap">
+      <header className="top">
+        <h1>Story Map</h1><span className="chip">Admin</span>
+        <span style={{ flex: 1 }} />
+        <button className="quiet" onClick={async () => { await api('/api/admin/login', 'DELETE'); setAuth({ admin: false, configured: true }); }}>Sign out</button>
+      </header>
+      <div className="grid">
+        <div className="col">
+          <section className="panel">
+            <h2>Sessions</h2>
+            <ul className="list">
+              {list.map((x) => (
+                <li key={x.id}>
+                  <button className="item" aria-current={x.id === selId} onClick={() => { setSelId(x.id); loadedFor.current = null; }}>
+                    {x.title} <span className="tag">· {x.n} · {x.is_default ? 'default link' : x.published ? 'shared' : x.status}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <details style={{ marginTop: 8 }}>
+              <summary className="note" style={{ cursor: 'pointer' }}>New session</summary>
+              <form className="stack" style={{ marginTop: 10 }} onSubmit={async (e) => {
+                e.preventDefault();
+                try { const j = await api('/api/admin/sessions', 'POST', { ...nw, signals: sigArr(nw.signals) }); setNw({ title: '', prompt: '', signals: '', minutes: 10 }); loadedFor.current = null; setSelId(j.id); await loadList(); say('Session created. Copy its link below.'); }
+                catch (er) { say(er.message, true); }
+              }}>
+                <div><label htmlFor="n-t">Title</label><input id="n-t" value={nw.title} onChange={(e) => setNw({ ...nw, title: e.target.value })} placeholder="Sensemakers · Nov 3" /></div>
+                <div><label htmlFor="n-p">Prompt</label><textarea id="n-p" rows={3} value={nw.prompt} onChange={(e) => setNw({ ...nw, prompt: e.target.value })} /></div>
+                <div><label htmlFor="n-s">Signals (comma separated, optional)</label><input id="n-s" value={nw.signals} onChange={(e) => setNw({ ...nw, signals: e.target.value })} /></div>
+                <div className="two"><div><label htmlFor="n-m">Minutes</label><input id="n-m" type="number" min={1} max={120} value={nw.minutes} onChange={(e) => setNw({ ...nw, minutes: e.target.value })} /></div><div /></div>
+                <div><button type="submit">Create session</button></div>
+              </form>
+            </details>
+          </section>
+
+          {s && (
+            <section className="panel stack">
+              <h2>{s.is_default ? 'Default link' : 'This session'}</h2>
+              <div className="row">
+                <input readOnly value={link} aria-label="Share link" onFocus={(e) => e.target.select()} />
+                <button className="ghost" onClick={() => { navigator.clipboard.writeText(link).then(() => say('Link copied.'), () => say('Select the link and copy it.', true)); }}>Copy link</button>
+              </div>
+              <div className={'status' + (isOpen ? ' ok' : '')}>
+                {isOpen ? (endsAt ? `Open · ${mmss(endsAt - now)} left` : 'Open, no timer') : 'Closed'} · {stories.length} stories
+              </div>
+              {!s.is_default && (
+                <div className="row">
+                  <button disabled={busy} onClick={() => patch({ start: true, minutes: form.minutes }, 'Timer started.')}>Start {form.minutes}-min timer</button>
+                  <button className="ghost" disabled={busy} onClick={() => patch({ open: true }, 'Open with no timer.')}>Open, no timer</button>
+                  <button className="quiet" disabled={busy || !isOpen} onClick={() => patch({ stop: true }, 'Closed.')}>Close</button>
+                </div>
+              )}
+              <details>
+                <summary className="note" style={{ cursor: 'pointer' }}>Edit prompt and settings</summary>
+                <div className="stack" style={{ marginTop: 10 }}>
+                  <div><label htmlFor="e-t">Title</label><input id="e-t" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+                  <div><label htmlFor="e-p">Prompt</label><textarea id="e-p" rows={3} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} /></div>
+                  <div><label htmlFor="e-s">Signals</label><input id="e-s" value={form.signals} onChange={(e) => setForm({ ...form, signals: e.target.value })} /></div>
+                  <div className="two"><div><label htmlFor="e-m">Minutes</label><input id="e-m" type="number" min={1} max={120} value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /></div><div /></div>
+                  <div className="row">
+                    <button className="ghost" disabled={busy} onClick={() => patch({ title: form.title, prompt: form.prompt, signals: sigArr(form.signals), minutes: form.minutes }, 'Saved.')}>Save settings</button>
+                    {!s.is_default && <Armed label="Delete session" armedLabel="Tap again to delete" onConfirm={() => act(async () => { await api(`/api/admin/sessions/${s.id}`, 'DELETE'); setSelId(null); setDet(null); loadedFor.current = null; say('Deleted.'); }, 'Deleting')} />}
+                  </div>
+                </div>
+              </details>
+            </section>
+          )}
+
+          {s && (
+            <section className="panel">
+              <h2>Stories ({stories.length})</h2>
+              {stories.length === 0 ? <p className="note">Stories appear here as people submit.</p> : stories.map((x) => (
+                <details key={x.id} className="story" open={!!open[x.id]} onToggle={(e) => setOpen({ ...open, [x.id]: e.currentTarget.open })}>
+                  <summary><i className="sw" style={{ background: color(x.signal) }} /><strong>{(x.name || '').trim() || 'Anonymous'}</strong><span className="tag">{x.signal || 'no signal'}{x.source === 'seed-recap' ? ' · recap' : ''}{x.x == null ? ' · not placed' : ''}</span></summary>
+                  <div className="stack" style={{ padding: '6px 0 8px' }}>
+                    <p className="storytext">{x.body}</p>
+                    <div><Armed label="Delete story" armedLabel="Tap again to delete" onConfirm={() => act(async () => { await api(`/api/admin/stories/${x.id}`, 'DELETE'); say('Story deleted.'); }, 'Deleting')} /></div>
+                  </div>
+                </details>
+              ))}
+            </section>
+          )}
+
+          {s && (
+            <section className="panel stack">
+              <h2>Axes</h2>
+              <button disabled={busy || stories.length < 2} onClick={() => act(async () => {
+                const j = await api(`/api/admin/sessions/${s.id}/axes`, 'POST');
+                setCands(j.cands);
+                const [i, k] = j.pair;
+                setAxes({ x: { ...j.cands[i] }, y: { ...j.cands[k] } });
+                say('Axes proposed. Adjust if you like, then save.');
+              }, 'Reading the stories for axes')}>Find axes from these stories</button>
+              {['x', 'y'].map((k) => (
+                <div key={k}>
+                  <label htmlFor={'sel-' + k}>{k === 'x' ? 'Horizontal axis' : 'Vertical axis'}</label>
+                  <select id={'sel-' + k} value={cands.findIndex((c) => c.name === axes[k].name && c.low === axes[k].low && c.high === axes[k].high)}
+                    onChange={(e) => { const c = cands[+e.target.value]; if (c) setAxes({ ...axes, [k]: { ...c } }); }}>
+                    <option value={-1}>Custom</option>
+                    {cands.map((c, i) => <option key={i} value={i}>{c.name}: {c.low} / {c.high}</option>)}
+                  </select>
+                  <div className="stack" style={{ marginTop: 6, gap: 8 }}>
+                    <input aria-label="Axis name" placeholder="Axis name" value={axes[k].name} onChange={(e) => setAxes({ ...axes, [k]: { ...axes[k], name: e.target.value, why: '' } })} />
+                    <div className="two">
+                      <input aria-label="Low pole" placeholder={k === 'x' ? 'Left pole' : 'Bottom pole'} value={axes[k].low} onChange={(e) => setAxes({ ...axes, [k]: { ...axes[k], low: e.target.value, why: '' } })} />
+                      <input aria-label="High pole" placeholder={k === 'x' ? 'Right pole' : 'Top pole'} value={axes[k].high} onChange={(e) => setAxes({ ...axes, [k]: { ...axes[k], high: e.target.value, why: '' } })} />
+                    </div>
+                  </div>
+                  {axes[k].why && <p className="why">{axes[k].why}</p>}
+                </div>
+              ))}
+              <div className="row">
+                <button className="ghost" disabled={busy || !axesOK || !axesDirty} onClick={() => patch({ axes }, 'Axes saved. Place the stories again to use them.')}>Save axes</button>
+                <button disabled={busy || !s.axes || axesDirty || stories.length === 0} onClick={() => act(async () => {
+                  const j = await api(`/api/admin/sessions/${s.id}/place`, 'POST');
+                  say(`Placed ${j.placed} of ${j.total}. Drag any dot you disagree with.`);
+                }, 'Placing stories')}>Place all stories</button>
+              </div>
+              {s.is_default && <p className="note">New stories on the default link are placed one at a time on these axes as they come in.</p>}
+            </section>
+          )}
+          <div className={'status' + (status.warn ? ' warn' : '')} role="status">{status.t}</div>
+        </div>
+
+        <div className="col">
+          {s && (
+            <section className="panel">
+              <h2>Map · {placed} of {stories.length} placed {s.published ? '· visible to writers' : '· only you see this'}</h2>
+              <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot} onSelect={setSelDot}
+                onMove={(id, x, y) => {
+                  setDet({ ...det, stories: stories.map((t) => (t.id === id ? { ...t, x, y, moved: true } : t)) });
+                  setSelDot(id);
+                  api(`/api/admin/stories/${id}`, 'PATCH', { x, y }).catch((e) => say(e.message, true));
+                }} />
+              {tags.length > 0 && <div className="legend">{tags.map((t) => <span key={t}><i className="sw" style={{ background: color(t) }} />{t}</span>)}</div>}
+            </section>
+          )}
+          {s && s.readout && <section className="panel"><h2>What the map shows</h2><p className="readout">{s.readout}</p></section>}
+          {dot && dot.x != null && (
+            <section className="panel stack">
+              <h2>Why {(dot.name || '').trim() || 'this story'} sits here</h2>
+              {['x', 'y'].map((k) => (
+                <div key={k}>
+                  <div><strong>{(s.axes || axes)[k].name}</strong> <span className="mono">{fmt(dot[k])}</span></div>
+                  {dot[k + 'w'] && <p className="why">{dot[k + 'w']}</p>}
+                  {dot[k + 'q'] && <div className="ev"><q>{dot[k + 'q']}</q>{!dot.body.includes(dot[k + 'q']) && <div className="note warn">Not found word for word in the story.</div>}</div>}
+                </div>
+              ))}
+              {dot.moved && <p className="note">You moved this dot. Claude placed it at {fmt(dot.ox ?? dot.x)}, {fmt(dot.oy ?? dot.y)}.</p>}
+            </section>
+          )}
+          {s && !s.is_default && (
+            <section className="panel stack">
+              <h2>Share the map</h2>
+              <div><label htmlFor="lm">Dot labels</label>
+                <select id="lm" value={s.label_mode} onChange={(e) => patch({ label_mode: e.target.value }, 'Saved.')}>
+                  <option value="anon">Anonymous (Story 1, 2, 3)</option>
+                  <option value="names">Names people typed</option>
+                </select>
+              </div>
+              <p className="note">Sharing shows this map to everyone with the session link, and lists it under Past sessions on the default link.</p>
+              <div className="row">
+                {!s.published
+                  ? <button disabled={busy || placed === 0} onClick={() => patch({ published: true }, 'Shared.')}>Share map</button>
+                  : <button className="quiet" disabled={busy} onClick={() => patch({ published: false }, 'Hidden again.')}>Hide map</button>}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
