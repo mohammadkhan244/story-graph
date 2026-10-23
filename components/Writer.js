@@ -94,7 +94,11 @@ export default function Writer({ session, onSubmitted }) {
           <div><label htmlFor="w-sig">Signal</label>
             <select id="w-sig" value={signal} onChange={(e) => setSignal(e.target.value)}>
               <option value="">Which one did you pick?</option>
-              {session.signals.map((s) => <option key={s} value={s}>{s}</option>)}
+              {session.signals.map((s) => {
+                const val = typeof s === 'string' ? s : s.type;
+                const label = typeof s === 'string' ? s : `${s.type}: ${String(s.text || '').slice(0, 60)}`;
+                return <option key={val} value={val}>{label}</option>;
+              })}
             </select>
           </div>
         ) : <div />}

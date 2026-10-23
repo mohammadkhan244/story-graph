@@ -29,11 +29,14 @@ export default function MapView({ map, youId, title = 'Where everyone landed', s
         )}
       </section>
       {map.readout && <section className="panel"><h2>What the map shows</h2><p className="readout">{map.readout}</p></section>}
-      {p && showQuotes && (p.xq || p.yq) && (
+      {p && showQuotes && (p.headline || p.xq || p.yq) && (
         <section className="panel stack">
           <h2>Why {p.id === youId ? 'your story' : p.label} sits here</h2>
-          <Evidence axis={map.axes.x} val={p.x} q={p.xq} why={p.xw} />
-          <Evidence axis={map.axes.y} val={p.y} q={p.yq} why={p.yw} />
+          {p.headline && <p className="story-headline">"{p.headline}"</p>}
+          {(p.xq || p.yq) && <>
+            <Evidence axis={map.axes.x} val={p.x} q={p.xq} why={p.xw} />
+            <Evidence axis={map.axes.y} val={p.y} q={p.yq} why={p.yw} />
+          </>}
         </section>
       )}
     </div>

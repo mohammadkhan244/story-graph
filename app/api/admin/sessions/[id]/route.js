@@ -18,6 +18,15 @@ const cleanAxis = (a) => a && typeof a === 'object'
   ? { name: String(a.name || '').slice(0, 80), low: String(a.low || '').slice(0, 80), high: String(a.high || '').slice(0, 80), why: String(a.why || '').slice(0, 400) }
   : null;
 
+function cleanSignals(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((x) => {
+    if (typeof x === 'string') return x.trim().slice(0, 80);
+    if (x && typeof x === 'object') return { type: String(x.type || '').trim().slice(0, 40), text: String(x.text || '').trim().slice(0, 400) };
+    return null;
+  }).filter(Boolean).slice(0, 12);
+}
+
 export async function PATCH(req, { params }) {
   if (!isAdmin()) return denied();
   try {
@@ -26,9 +35,15 @@ export async function PATCH(req, { params }) {
     if (!s) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     const set = [], vals = [s.id];
     const put = (col, v) => { vals.push(v); set.push(`${col}=$${vals.length}`); };
+
     if (typeof b.title === 'string') put('title', b.title.trim().slice(0, 120) || s.title);
     if (typeof b.prompt === 'string' && b.prompt.trim()) put('prompt', b.prompt.trim().slice(0, 2000));
-    if (Array.isArray(b.signals)) put('signals', JSON.stringify(b.signals.map((x) => String(x).trim().slice(0, 80)).filter(Boolean).slice(0, 12)));
+    if (typeof b.big_question === 'string') put('big_question', b.big_question.trim().slice(0, 400));
+    if (typeof b.instructions === 'string') put('instructions', b.instructions.trim().slice(0, 4000));
+    if (b.year != null) put('year', parseInt(b.year, 10) || null);
+    if (b.sort != null) put('sort', parseInt(b.sort, 10) || 999);
+    if (typeof b.hidden === 'boolean') put('hidden', b.hidden);
+    if (Array.isArray(b.signals)) put('signals', JSON.stringify(cleanSignals(b.signals)));
     if (b.minutes != null) put('minutes', Math.max(1, Math.min(120, parseInt(b.minutes, 10) || 10)));
     if (b.start) {
       const mins = b.minutes != null ? Math.max(1, Math.min(120, parseInt(b.minutes, 10) || 10)) : s.minutes;
@@ -42,6 +57,7 @@ export async function PATCH(req, { params }) {
     }
     if (typeof b.published === 'boolean') put('published', s.is_default ? true : b.published);
     if (b.label_mode === 'names' || b.label_mode === 'anon') put('label_mode', b.label_mode);
+
     if (!set.length) return NextResponse.json({ session: s });
     const r = await q(`update sessions set ${set.join(', ')} where id=$1 returning *`, vals);
     return NextResponse.json({ session: r[0] });
@@ -51,7 +67,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(_req, { params }) {
   if (!isAdmin()) return denied();
   try {
-    const s = (await q('select is_default from sessions where id=$1', [params.id]))[0];
+    const s = (await q('select is_default, kind from sessions where id=$1', [params.id]))[0];
     if (!s) return NextResponse.json({ ok: true });
     if (s.is_default) return NextResponse.json({ error: 'The default session cannot be deleted.' }, { status: 400 });
     await q('delete from sessions where id=$1', [params.id]);

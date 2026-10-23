@@ -35,6 +35,23 @@ const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const mmss = (ms) => { const s = Math.ceil(Math.max(0, ms) / 1000); return pad(Math.floor(s / 60)) + ':' + pad(s % 60); };
 const emptyAxis = { name: '', low: '', high: '', why: '' };
 
+/* Serialize signals (possibly {type,text} objects) to one-per-line "TYPE: text" */
+function signalsToText(signals) {
+  if (!Array.isArray(signals)) return '';
+  return signals.map((s) => {
+    if (typeof s === 'string') return s;
+    return `${s.type}: ${s.text}`;
+  }).join('\n');
+}
+
+/* Parse "TYPE: text" lines back to objects (or plain strings for old sessions) */
+function textToSignals(text) {
+  return text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const m = /^([^:]{1,40}):\s+(.+)/.exec(l);
+    return m ? { type: m[1].trim(), text: m[2].trim() } : l;
+  }).slice(0, 12);
+}
+
 export default function Admin() {
   const [auth, setAuth] = useState(null);
   const [list, setList] = useState([]);
@@ -43,7 +60,7 @@ export default function Admin() {
   const [status, setStatus] = useState({ t: '', warn: false });
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [form, setForm] = useState({ title: '', prompt: '', signals: '', minutes: 10 });
+  const [form, setForm] = useState({ title: '', prompt: '', big_question: '', instructions: '', year: '', signals: '', minutes: 10 });
   const [nw, setNw] = useState({ title: '', prompt: '', signals: '', minutes: 10 });
   const [axes, setAxes] = useState({ x: emptyAxis, y: emptyAxis });
   const [cands, setCands] = useState([]);
@@ -66,7 +83,15 @@ export default function Admin() {
       if (loadedFor.current !== id) {
         loadedFor.current = id;
         const s = j.session;
-        setForm({ title: s.title, prompt: s.prompt, signals: (s.signals || []).join(', '), minutes: s.minutes });
+        setForm({
+          title: s.title, prompt: s.prompt,
+          big_question: s.big_question || '',
+          instructions: s.instructions || '',
+          year: s.year || '',
+          signals: signalsToText(s.signals || []),
+          minutes: s.minutes,
+          hidden: !!s.hidden,
+        });
         setAxes(s.axes ? { x: { ...emptyAxis, ...s.axes.x }, y: { ...emptyAxis, ...s.axes.y } } : { x: emptyAxis, y: emptyAxis });
         setCands(s.cands || []); setSelDot(null);
       }
@@ -88,7 +113,9 @@ export default function Admin() {
 
   const s = det && det.session;
   const stories = (det && det.stories) || [];
-  const link = s ? (typeof window !== 'undefined' ? window.location.origin : '') + (s.is_default ? '/' : `/s/${s.id}`) : '';
+  const isPrompt = s && s.kind === 'open' && s.slug;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const link = s ? (isPrompt ? `${origin}/p/${s.slug}` : s.is_default ? `${origin}/` : `${origin}/s/${s.id}`) : '';
   const endsAt = s && s.ends_at ? new Date(s.ends_at).getTime() : null;
   const isOpen = s && s.status === 'open' && (!endsAt || now < endsAt);
   const placed = stories.filter((x) => x.x != null).length;
@@ -106,7 +133,6 @@ export default function Admin() {
     setBusy(false);
   }
   const patch = (body, done) => act(async () => { await api(`/api/admin/sessions/${s.id}`, 'PATCH', body); say(done); }, 'Saving');
-  const sigArr = (t) => t.split(',').map((x) => x.trim()).filter(Boolean);
 
   return (
     <main className="wrap">
@@ -118,26 +144,36 @@ export default function Admin() {
       <div className="grid">
         <div className="col">
           <section className="panel">
-            <h2>Sessions</h2>
+            <h2>Prompts &amp; Sessions</h2>
             <ul className="list">
-              {list.map((x) => (
-                <li key={x.id}>
-                  <button className="item" aria-current={x.id === selId} onClick={() => { setSelId(x.id); loadedFor.current = null; }}>
-                    {x.title} <span className="tag">· {x.n} · {x.is_default ? 'default link' : x.published ? 'shared' : x.status}</span>
-                  </button>
-                </li>
-              ))}
+              {list.map((x) => {
+                const tag = x.kind === 'open' && x.slug
+                  ? `prompt${x.hidden ? ' · hidden' : ''} · ${x.n}`
+                  : x.is_default ? `default · ${x.n}` : x.published ? `shared · ${x.n}` : `${x.status} · ${x.n}`;
+                return (
+                  <li key={x.id}>
+                    <button className="item" aria-current={x.id === selId} onClick={() => { setSelId(x.id); loadedFor.current = null; }}>
+                      {x.title} <span className="tag">· {tag}</span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
             <details style={{ marginTop: 8 }}>
               <summary className="note" style={{ cursor: 'pointer' }}>New session</summary>
               <form className="stack" style={{ marginTop: 10 }} onSubmit={async (e) => {
                 e.preventDefault();
-                try { const j = await api('/api/admin/sessions', 'POST', { ...nw, signals: sigArr(nw.signals) }); setNw({ title: '', prompt: '', signals: '', minutes: 10 }); loadedFor.current = null; setSelId(j.id); await loadList(); say('Session created. Copy its link below.'); }
+                try {
+                  const j = await api('/api/admin/sessions', 'POST', { ...nw, signals: textToSignals(nw.signals) });
+                  setNw({ title: '', prompt: '', signals: '', minutes: 10 });
+                  loadedFor.current = null; setSelId(j.id); await loadList();
+                  say('Session created. Copy its link below.');
+                }
                 catch (er) { say(er.message, true); }
               }}>
                 <div><label htmlFor="n-t">Title</label><input id="n-t" value={nw.title} onChange={(e) => setNw({ ...nw, title: e.target.value })} placeholder="Sensemakers · Nov 3" /></div>
                 <div><label htmlFor="n-p">Prompt</label><textarea id="n-p" rows={3} value={nw.prompt} onChange={(e) => setNw({ ...nw, prompt: e.target.value })} /></div>
-                <div><label htmlFor="n-s">Signals (comma separated, optional)</label><input id="n-s" value={nw.signals} onChange={(e) => setNw({ ...nw, signals: e.target.value })} /></div>
+                <div><label htmlFor="n-s">Signals (one per line, or TYPE: text)</label><textarea id="n-s" rows={3} value={nw.signals} onChange={(e) => setNw({ ...nw, signals: e.target.value })} /></div>
                 <div className="two"><div><label htmlFor="n-m">Minutes</label><input id="n-m" type="number" min={1} max={120} value={nw.minutes} onChange={(e) => setNw({ ...nw, minutes: e.target.value })} /></div><div /></div>
                 <div><button type="submit">Create session</button></div>
               </form>
@@ -146,31 +182,72 @@ export default function Admin() {
 
           {s && (
             <section className="panel stack">
-              <h2>{s.is_default ? 'Default link' : 'This session'}</h2>
+              <h2>{isPrompt ? 'Open prompt' : s.is_default ? 'Default link' : 'This session'}</h2>
               <div className="row">
                 <input readOnly value={link} aria-label="Share link" onFocus={(e) => e.target.select()} />
                 <button className="ghost" onClick={() => { navigator.clipboard.writeText(link).then(() => say('Link copied.'), () => say('Select the link and copy it.', true)); }}>Copy link</button>
               </div>
               <div className={'status' + (isOpen ? ' ok' : '')}>
-                {isOpen ? (endsAt ? `Open · ${mmss(endsAt - now)} left` : 'Open, no timer') : 'Closed'} · {stories.length} stories
+                {isOpen ? (endsAt ? `Open · ${mmss(endsAt - now)} left` : 'Open, no timer') : isPrompt ? 'Always open' : 'Closed'} · {stories.length} stories
               </div>
-              {!s.is_default && (
+
+              {/* Session-only: timer controls */}
+              {!s.is_default && !isPrompt && (
                 <div className="row">
                   <button disabled={busy} onClick={() => patch({ start: true, minutes: form.minutes }, 'Timer started.')}>Start {form.minutes}-min timer</button>
                   <button className="ghost" disabled={busy} onClick={() => patch({ open: true }, 'Open with no timer.')}>Open, no timer</button>
                   <button className="quiet" disabled={busy || !isOpen} onClick={() => patch({ stop: true }, 'Closed.')}>Close</button>
                 </div>
               )}
+
+              {/* Prompt-only: create session from this prompt */}
+              {isPrompt && (
+                <div>
+                  <button className="ghost" disabled={busy} onClick={() => act(async () => {
+                    const j = await api('/api/admin/sessions', 'POST', { fromPromptId: s.id, minutes: 10 });
+                    loadedFor.current = null; setSelId(j.id);
+                    say('Session created from this prompt. Copy its link below.');
+                  }, 'Creating session')}>Create timed session from this prompt</button>
+                </div>
+              )}
+
               <details>
-                <summary className="note" style={{ cursor: 'pointer' }}>Edit prompt and settings</summary>
+                <summary className="note" style={{ cursor: 'pointer' }}>Edit {isPrompt ? 'prompt' : 'session'} settings</summary>
                 <div className="stack" style={{ marginTop: 10 }}>
                   <div><label htmlFor="e-t">Title</label><input id="e-t" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-                  <div><label htmlFor="e-p">Prompt</label><textarea id="e-p" rows={3} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} /></div>
-                  <div><label htmlFor="e-s">Signals</label><input id="e-s" value={form.signals} onChange={(e) => setForm({ ...form, signals: e.target.value })} /></div>
-                  <div className="two"><div><label htmlFor="e-m">Minutes</label><input id="e-m" type="number" min={1} max={120} value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /></div><div /></div>
+                  <div><label htmlFor="e-p">Prompt (shown to writers / used for Claude context)</label><textarea id="e-p" rows={3} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} /></div>
+                  {isPrompt && <>
+                    <div><label htmlFor="e-bq">Big question (shown on menu card)</label><input id="e-bq" value={form.big_question} onChange={(e) => setForm({ ...form, big_question: e.target.value })} /></div>
+                    <div><label htmlFor="e-inst">Writing instructions (shown while writing)</label><textarea id="e-inst" rows={5} value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} /></div>
+                    <div><label htmlFor="e-yr">Year</label><input id="e-yr" type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
+                  </>}
+                  <div><label htmlFor="e-s">Signals (one per line, or TYPE: text)</label><textarea id="e-s" rows={6} value={form.signals} onChange={(e) => setForm({ ...form, signals: e.target.value })} /></div>
+                  <div className="two">
+                    {!isPrompt && <div><label htmlFor="e-m">Minutes</label><input id="e-m" type="number" min={1} max={120} value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /></div>}
+                    {isPrompt && <label className="check"><input type="checkbox" checked={!!form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} /> Hide from menu</label>}
+                    <div />
+                  </div>
                   <div className="row">
-                    <button className="ghost" disabled={busy} onClick={() => patch({ title: form.title, prompt: form.prompt, signals: sigArr(form.signals), minutes: form.minutes }, 'Saved.')}>Save settings</button>
-                    {!s.is_default && <Armed label="Delete session" armedLabel="Tap again to delete" onConfirm={() => act(async () => { await api(`/api/admin/sessions/${s.id}`, 'DELETE'); setSelId(null); setDet(null); loadedFor.current = null; say('Deleted.'); }, 'Deleting')} />}
+                    <button className="ghost" disabled={busy} onClick={() => {
+                      const body = {
+                        title: form.title, prompt: form.prompt,
+                        signals: textToSignals(form.signals),
+                        minutes: form.minutes,
+                      };
+                      if (isPrompt) {
+                        body.big_question = form.big_question;
+                        body.instructions = form.instructions;
+                        body.year = form.year;
+                        body.hidden = !!form.hidden;
+                      }
+                      patch(body, 'Saved.');
+                    }}>Save settings</button>
+                    {!s.is_default && !isPrompt && (
+                      <Armed label="Delete session" armedLabel="Tap again to delete" onConfirm={() => act(async () => {
+                        await api(`/api/admin/sessions/${s.id}`, 'DELETE');
+                        setSelId(null); setDet(null); loadedFor.current = null; say('Deleted.');
+                      }, 'Deleting')} />
+                    )}
                   </div>
                 </div>
               </details>
@@ -182,7 +259,12 @@ export default function Admin() {
               <h2>Stories ({stories.length})</h2>
               {stories.length === 0 ? <p className="note">Stories appear here as people submit.</p> : stories.map((x) => (
                 <details key={x.id} className="story" open={!!open[x.id]} onToggle={(e) => setOpen({ ...open, [x.id]: e.currentTarget.open })}>
-                  <summary><i className="sw" style={{ background: color(x.signal) }} /><strong>{(x.name || '').trim() || 'Anonymous'}</strong><span className="tag">{x.signal || 'no signal'}{x.source === 'seed-recap' ? ' · recap' : ''}{x.x == null ? ' · not placed' : ''}</span></summary>
+                  <summary>
+                    <i className="sw" style={{ background: color(x.signal) }} />
+                    <strong>{(x.name || '').trim() || 'Anonymous'}</strong>
+                    <span className="tag">{x.signal || 'no signal'}{x.source === 'seed-recap' ? ' · recap' : ''}{x.x == null ? ' · not placed' : ''}</span>
+                    {x.headline && <span className="tag" style={{ fontStyle: 'italic' }}> · "{x.headline}"</span>}
+                  </summary>
                   <div className="stack" style={{ padding: '6px 0 8px' }}>
                     <p className="storytext">{x.body}</p>
                     <div><Armed label="Delete story" armedLabel="Tap again to delete" onConfirm={() => act(async () => { await api(`/api/admin/stories/${x.id}`, 'DELETE'); say('Story deleted.'); }, 'Deleting')} /></div>
@@ -227,7 +309,8 @@ export default function Admin() {
                   say(`Placed ${j.placed} of ${j.total}. Drag any dot you disagree with.`);
                 }, 'Placing stories')}>Place all stories</button>
               </div>
-              {s.is_default && <p className="note">New stories on the default link are placed one at a time on these axes as they come in.</p>}
+              {isPrompt && <p className="note">New stories on open prompts are placed immediately as they come in.</p>}
+              {s.is_default && !isPrompt && <p className="note">New stories on the default link are placed one at a time on these axes as they come in.</p>}
             </section>
           )}
           <div className={'status' + (status.warn ? ' warn' : '')} role="status">{status.t}</div>
@@ -236,7 +319,7 @@ export default function Admin() {
         <div className="col">
           {s && (
             <section className="panel">
-              <h2>Map · {placed} of {stories.length} placed {s.published ? '· visible to writers' : '· only you see this'}</h2>
+              <h2>Map · {placed} of {stories.length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
               <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot} onSelect={setSelDot}
                 onMove={(id, x, y) => {
                   setDet({ ...det, stories: stories.map((t) => (t.id === id ? { ...t, x, y, moved: true } : t)) });
@@ -250,6 +333,7 @@ export default function Admin() {
           {dot && dot.x != null && (
             <section className="panel stack">
               <h2>Why {(dot.name || '').trim() || 'this story'} sits here</h2>
+              {dot.headline && <p className="story-headline">"{dot.headline}"</p>}
               {['x', 'y'].map((k) => (
                 <div key={k}>
                   <div><strong>{(s.axes || axes)[k].name}</strong> <span className="mono">{fmt(dot[k])}</span></div>
@@ -260,7 +344,7 @@ export default function Admin() {
               {dot.moved && <p className="note">You moved this dot. Claude placed it at {fmt(dot.ox ?? dot.x)}, {fmt(dot.oy ?? dot.y)}.</p>}
             </section>
           )}
-          {s && !s.is_default && (
+          {s && !s.is_default && !isPrompt && (
             <section className="panel stack">
               <h2>Share the map</h2>
               <div><label htmlFor="lm">Dot labels</label>
