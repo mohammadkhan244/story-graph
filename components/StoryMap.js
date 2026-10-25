@@ -9,6 +9,13 @@ const unpx = (v) => ((v - M) / (W - 2 * M)) * 10 - 5;
 const unpy = (v) => ((H - M - v) / (H - 2 * M)) * 10 - 5;
 const r1 = (v) => Math.max(-5, Math.min(5, Math.round(v * 10) / 10));
 const short = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+/* Split label into 1–2 lines at the last space within maxChars */
+function labelLines(label, maxChars = 13) {
+  if (label.length <= maxChars) return [label];
+  const sp = label.lastIndexOf(' ', maxChars);
+  if (sp < 1) return [short(label, maxChars + 1)];
+  return [label.slice(0, sp), label.slice(sp + 1)];
+}
 export const fmt = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(1);
 
 export function signalColors(points) {
@@ -85,7 +92,14 @@ export default function StoryMap({ axes, quads, points, youId, selId, onSelect, 
             {you && <circle r={22} fill="none" stroke={c} strokeWidth={2} opacity={0.5} />}
             <circle r={you ? 17 : 15} fill={scored ? c : 'none'} stroke={c} strokeWidth={sel ? 4 : 2} strokeDasharray={scored ? undefined : '3 3'} />
             <text className="dtxt" textAnchor="middle" y={4} style={{ fill: scored ? 'var(--dot-ink)' : c }}>{you ? '★' : initialOf(p.label)}</text>
-            <text className="dlab" textAnchor="middle" y={you ? 36 : 32}>{you ? 'You' : short(p.label, 16)}</text>
+            {you ? (
+              <text className="dlab" textAnchor="middle" y={36}>You</text>
+            ) : (() => {
+              const lines = labelLines(p.label);
+              return lines.length === 1
+                ? <text className="dlab" textAnchor="middle" y={32}>{lines[0]}</text>
+                : <text className="dlab" textAnchor="middle"><tspan x={0} y={32}>{lines[0]}</tspan><tspan x={0} dy={13}>{lines[1]}</tspan></text>;
+            })()}
           </g>
         );
       })}
