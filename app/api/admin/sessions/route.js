@@ -31,11 +31,12 @@ export async function POST(req) {
       const title = String(b.title || pr.title).trim().slice(0, 120) || pr.title;
       const minutes = Math.max(1, Math.min(120, parseInt(b.minutes, 10) || 10));
       await q(
-        `insert into sessions (id,title,prompt,signals,minutes,status,axes,kind,big_question,instructions,year)
-         values ($1,$2,$3,$4,$5,'closed',$6,'session',$7,$8,$9)`,
+        `insert into sessions (id,title,prompt,signals,minutes,status,axes,kind,big_question,instructions,year,parent_id,ask,scene,label_mode)
+         values ($1,$2,$3,$4,$5,'closed',$6,'session',$7,$8,$9,$10,$11,$12,'anon')`,
         [id, title, pr.prompt, JSON.stringify(pr.signals), minutes,
          pr.axes ? JSON.stringify(pr.axes) : null,
-         pr.big_question || '', pr.instructions || '', pr.year || null]
+         pr.big_question || '', pr.instructions || '', pr.year || null,
+         pr.id, pr.ask ? JSON.stringify(pr.ask) : null, pr.scene || '']
       );
       return NextResponse.json({ id });
     }

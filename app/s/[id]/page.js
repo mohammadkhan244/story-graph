@@ -1,7 +1,7 @@
-import SessionPage from '@/components/SessionPage';
+import Flow from '@/components/Flow';
 
 export const dynamic = 'force-dynamic';
 
 export default function Page({ params }) {
-  return <SessionPage id={params.id} />;
+  return <Flow mode="session" id={params.id} />;
 }

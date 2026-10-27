@@ -1,7 +1,7 @@
-import PromptPage from '@/components/PromptPage';
+import Flow from '@/components/Flow';
 
 export const dynamic = 'force-dynamic';
 
 export default function Page({ params }) {
-  return <PromptPage slug={params.slug} />;
+  return <Flow mode="prompt" id={params.slug} />;
 }

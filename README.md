@@ -37,3 +37,18 @@ Set `MOCK_CLAUDE=1` to try every flow without an API key. Scores will be fake.
 - **Cost**: each story on `/` costs one small Claude call, and each "Find axes" or "Place all stories" costs one larger call.
 - **Open link**: `/` takes public writes. There is a length limit and a honeypot, but no rate limit. If it gets abused, add Vercel's firewall rate limiting or close the open prompt.
 - **Admin cookie**: stays valid for 30 days. Changing `ADMIN_PASSWORD` signs everyone out.
+
+
+## Interactive flow (v2)
+
+- **`/`**: "Find out what story is controlling your decisions." Four prompt cards at a time; "Choose a different question" deals the next four.
+- **`/p/<prompt>`**: Scene (one quick question or a signal card) → Write (10 minutes, "Start with a specific morning…", speak or type) → Name it → Map (your dot in ruby) → draw where you'd rather be → five questions, no answers given.
+- **`/s/<session>`**: the same flow for a live room, straight from a QR code. Stories also join the prompt's public map, labeled Anonymous.
+- **`/present/<session>`** (admin only): the screen you share. QR join box, timer, "Reveal the map", names/arrows/earlier-groups toggles, discuss questions, and you can draw someone's arrow for them.
+- Writers can only change their own arrow (a private token is stored in their browser on submit).
+
+### Card exercise feed (optional)
+Set `INGEST_SECRET` in Vercel. The workshop site can then POST each submitted card exercise to
+`/api/ingest/card-exercise` with header `Authorization: Bearer <INGEST_SECRET>` and JSON
+`{ decision: "migration"|"automation"|"buildbuy"|"scaling", story, submissionId, situation, character, emotion, lens }`.
+Those stories show as hollow dots on the matching decision map.

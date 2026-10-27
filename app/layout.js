@@ -2,7 +2,7 @@ import './globals.css';
 
 export const metadata = {
   title: 'Story Map',
-  description: 'Write a short story about the future and see where it lands among everyone else\'s.',
+  description: 'Find out what story is controlling your decisions. Write for ten minutes, see where your story lands.',
 };
 
 export default function RootLayout({ children }) {
@@ -13,7 +13,7 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,500;1,500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Gilda+Display&family=Josefin+Sans:wght@600&family=Lato:ital,wght@0,400;0,700;1,400&display=swap"
         />
       </head>
       <body>{children}</body>
