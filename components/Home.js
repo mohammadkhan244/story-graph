@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { SETS, cardSvg } from '@/lib/cards';
+import { SETS, artSvg, decision } from '@/lib/cards';
 import BrandBar from './BrandBar';
 
 /* Four cards at a time. Click a card, the exercise starts. */
@@ -41,8 +41,13 @@ export default function Home() {
       <BrandBar />
       <section className="home-head">
         <h1>Find out what story is controlling your decisions.</h1>
-        <p className="sub">Pick one. Write for ten minutes. See where your story lands among everyone else’s.</p>
+        <ol className="howto" aria-label="How it works">
+          <li><span className="howto-n">1</span><strong>Pick a decision</strong><span>One you’re facing, or one your team keeps circling.</span></li>
+          <li><span className="howto-n">2</span><strong>Write for 10 minutes</strong><span>A day in that future. No planning, no polish.</span></li>
+          <li><span className="howto-n">3</span><strong>See where you land</strong><span>Your story on a map next to everyone else’s, then draw where you’d rather be.</span></li>
+        </ol>
       </section>
+      <h2 className="pick-head">What decision are you facing?</h2>
       {err && <p className="warn center">{err}</p>}
       {!data && !err && <p className="note center">Shuffling the deck…</p>}
       {cur && (
@@ -51,9 +56,11 @@ export default function Home() {
             {cur.cards.map((p, i) => (
               <div role="listitem" key={p.slug}>
                 <button type="button" className={'pcard' + (chosen === p.slug ? ' chosen' : '')} style={{ '--i': i }}
-                  onClick={() => pick(p)} disabled={!!chosen} aria-label={`${p.title}. ${p.n} stories so far.`}>
-                  <span className="pcard-face" dangerouslySetInnerHTML={{ __html: cardSvg(p.slug, p.title) }} />
-                  <span className="pcard-meta">{p.n === 0 ? 'Be the first' : `${p.n} ${p.n === 1 ? 'story' : 'stories'}`}</span>
+                  onClick={() => pick(p)} disabled={!!chosen}>
+                  <span className="pcard-art" dangerouslySetInnerHTML={{ __html: artSvg(p.slug) }} />
+                  <span className="pcard-q">{decision(p.slug, p.title).q}</span>
+                  <span className="pcard-why">{decision(p.slug, p.title).why}</span>
+                  <span className="pcard-meta">{p.n === 0 ? 'Be the first' : `${p.n} ${p.n === 1 ? 'story' : 'stories'} so far`}</span>
                 </button>
               </div>
             ))}
@@ -61,7 +68,7 @@ export default function Home() {
           {sets.length > 1 && (
             <>
               <div className="deck-actions">
-                <button type="button" className="textlink" onClick={next}>Choose a different question ↻</button>
+                <button type="button" className="textlink" onClick={next}>Show me other decisions ↻</button>
               </div>
               <div className="set-dots" aria-hidden="true">{sets.map((_, i) => <span key={i} className={i === set ? 'on' : ''} />)}</div>
             </>

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryMap, { Mark, signalColors } from './StoryMap';
 import BrandBar from './BrandBar';
-import { cardSvg, signalIcon } from '@/lib/cards';
+import { artSvg, decision, signalIcon } from '@/lib/cards';
 
 const ANCHOR = 'Start with a specific morning. Where are you? What do you see first?';
 const STEPS = ['Scene', 'Write', 'Name', 'Map', 'Think'];
@@ -15,11 +15,11 @@ const ls = {
 };
 const DRIFT = /\b(I think|I believe|I guess|AI will|in the future|probably|people will)\b/i;
 
-function leadLine(s, context) {
+function leadLine(s, context, signal) {
   if (s.ask && context) return s.ask.lead.replace('{x}', context);
   if (s.scene) return s.scene;
-  if (s.signals && s.signals.length && s.year) return `It's ${s.year}. The signal you picked is now how everyone lives.`;
-  return s.bigQuestion || s.prompt;
+  if (signal && s.year) return `It's ${s.year}. The signal you picked is now how everyone lives.`;
+  return s.prompt || s.bigQuestion;
 }
 const side = (v, a) => (v < -0.8 ? a.low : v > 0.8 ? a.high : null);
 
@@ -215,14 +215,16 @@ export default function Flow({ mode, id }) {
   if (!s || stage === 'loading') return <main className="flow"><BrandBar /><p className="note center">Loading…</p></main>;
 
   const stepIdx = { scene: 0, write: 1, name: 2, placing: 2, waiting: 3, map: 3, think: 4, end: 4 }[stage] ?? 0;
-  const lead = leadLine(s, context);
+  const lead = leadLine(s, context, signal);
+  const slug = s.cardSlug || s.slug || 'keep-circling';
+  const dec = decision(slug, s.title);
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   const drift = DRIFT.test(text.slice(-180));
   const { tags, shape } = signalColors(points);
 
   return (
     <main className="flow">
-      <BrandBar right={!isSession && <a className="textlink" href="/">Choose a different question</a>} />
+      <BrandBar right={!isSession && <a className="textlink" href="/">Choose a different decision</a>} />
       {!['closed'].includes(stage) && (
         <div className="steps" aria-label="Progress">
           {STEPS.map((t, i) => <div key={t} className={i < stepIdx ? 'done' : i === stepIdx ? 'on' : ''}>{t}</div>)}
@@ -231,8 +233,8 @@ export default function Flow({ mode, id }) {
 
       {stage === 'closed' && (
         <section className="stage center" style={{ gap: 18, paddingTop: 40 }}>
-          <div className="mini-card" style={{ width: 120 }} dangerouslySetInnerHTML={{ __html: cardSvg(s.cardSlug || s.slug || 'keep-circling', s.title) }} />
-          <h3>{s.title}</h3>
+          <div className="icon-badge" dangerouslySetInnerHTML={{ __html: artSvg(slug) }} />
+          <h3>{dec.q}</h3>
           <p className="sub">Writing hasn’t started yet. This page opens by itself when it does.</p>
         </section>
       )}
@@ -240,25 +242,39 @@ export default function Flow({ mode, id }) {
       {stage === 'scene' && (
         <section className="stage">
           <div className="stage-head">
-            <div className="mini-card" dangerouslySetInnerHTML={{ __html: cardSvg(s.cardSlug || s.slug || 'keep-circling', s.title) }} />
-            {s.ask ? <h3>{s.ask.label}</h3> : <h3>Pick the signal that grabs you.</h3>}
-            {!s.ask && <p className="sub">These are made-up signals: signs that something is changing.</p>}
+            <div className="icon-badge" dangerouslySetInnerHTML={{ __html: artSvg(slug) }} />
+            <h3>{dec.q}</h3>
+            {dec.why && <p className="sub">{dec.why}</p>}
           </div>
           {s.ask ? (
             <form className="ask" onSubmit={(e) => { e.preventDefault(); if (context.trim()) setStage('write'); }}>
-              <input autoFocus aria-label={s.ask.label} value={context} maxLength={140} onChange={(e) => setContext(e.target.value)} placeholder={s.ask.placeholder} />
-              <div className="center"><button className="big" type="submit" disabled={!context.trim()}>Set the scene →</button></div>
+              <label htmlFor="ask">{s.ask.label}</label>
+              <input id="ask" autoFocus value={context} maxLength={140} onChange={(e) => setContext(e.target.value)} placeholder={s.ask.placeholder} />
+              <p className="note">One line is enough. It sets the scene for your story.</p>
+              <div className="center"><button className="big primary" type="submit" disabled={!context.trim()}>Write for {minutes} minutes →</button></div>
             </form>
           ) : (
-            <div className="signals">
-              {s.signals.map((g, i) => (
-                <button key={i} type="button" className="sigcard" style={{ '--i': i }} onClick={() => { setSignal(g); setStage('write'); }}>
-                  <svg className="sig-art" viewBox="0 0 100 92" dangerouslySetInnerHTML={{ __html: signalIcon(g.type) }} />
-                  <span className="sig-type">{g.type}</span>
-                  <span>{g.text}</span>
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="twoways">
+                <div className="way">
+                  <span className="kicker">Already have something in mind?</span>
+                  <button className="big primary" type="button" onClick={() => { setSignal(null); setStage('write'); }}>Write for {minutes} minutes →</button>
+                </div>
+                <div className="way">
+                  <span className="kicker">Want a nudge?</span>
+                  <p className="sub">Pick a signal below. Signals are made-up glimpses of how this could change. They’re there to get you imagining, not to tell you what to write.</p>
+                </div>
+              </div>
+              <div className="signals">
+                {s.signals.map((g, i) => (
+                  <button key={i} type="button" className="sigcard" style={{ '--i': i }} onClick={() => { setSignal(g); setStage('write'); }}>
+                    <svg className="sig-art" viewBox="0 0 100 92" dangerouslySetInnerHTML={{ __html: signalIcon(g.type) }} />
+                    <span className="sig-type">{g.type}</span>
+                    <span>{g.text}</span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </section>
       )}
@@ -273,7 +289,7 @@ export default function Flow({ mode, id }) {
             <div className="pinned">
               <svg viewBox="0 0 100 92" dangerouslySetInnerHTML={{ __html: signalIcon(signal.type) }} />
               <div><div className="sig-type kicker">{signal.type}</div>{signal.text}
-                <div><button type="button" className="textlink change" style={{ marginTop: 6 }} onClick={() => setStage('scene')}>Pick another</button></div></div>
+                <div className="row" style={{ marginTop: 8 }}><button type="button" className="textlink change" onClick={() => setStage('scene')}>Pick another</button><button type="button" className="textlink change" onClick={() => setSignal(null)}>Write without it</button></div></div>
             </div>
           )}
           <div className="rules"><span>Don’t plan it</span><span>Don’t make it good</span><span>Anything is valid</span><span>Keep going</span></div>
@@ -417,7 +433,7 @@ export default function Flow({ mode, id }) {
                 <p className="sub">You just drew the interrupt.</p>
                 <div className="endcards">
                   {!isSession && <button type="button" className="endcard" onClick={restart}><strong>Write another</strong>Same question, new story.</button>}
-                  <a className="endcard" href="/"><strong>Try a different question</strong>Four more cards are waiting.</a>
+                  <a className="endcard" href="/"><strong>Try a different decision</strong>Four more cards are waiting.</a>
                   <a className="endcard" href="https://early-warning-system-kappa.vercel.app/" target="_blank" rel="noreferrer"><strong>Get the full reading</strong>Write Your Future reads what your story assumes.</a>
                 </div>
               </div>
