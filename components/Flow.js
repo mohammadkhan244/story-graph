@@ -80,6 +80,8 @@ export default function Flow({ mode, id }) {
   const [readingLens, setReadingLens] = useState('');
   const [testMode, setTestMode] = useState(false);
   const [fillIdx, setFillIdx] = useState(0);
+  const [resumeMode, setResumeMode] = useState(false);
+  const [pastMine, setPastMine] = useState(null);
   const [myQsData, setMyQsData] = useState(null); // null = use template
   const [myQsLoading, setMyQsLoading] = useState(false);
   const recRef = useRef(null);
@@ -99,12 +101,27 @@ export default function Flow({ mode, id }) {
     load().then((j) => {
       const m = ls.get(mineKey);
       const d = ls.get(draftKey);
-      if (m) { setMine(m); setStage(j.map ? 'map' : 'waiting'); return; }
-      if (d) { setContext(d.context || ''); setSignal(d.signal || null); setText(d.text || ''); setStartedAt(d.startedAt || null); }
       const sess = j.session;
-      if (isSession && !(sess.status === 'open')) { setStage('closed'); return; }
-      const needsScene = (sess.ask && !d?.context) || (sess.signals && sess.signals.length && !d?.signal);
-      setStage(d && d.text ? 'write' : needsScene ? 'scene' : 'write');
+
+      if (isSession) {
+        if (m) { setMine(m); setStage(j.map ? 'map' : 'waiting'); return; }
+        if (!(sess.status === 'open')) { setStage('closed'); return; }
+        if (d) { setContext(d.context || ''); setSignal(d.signal || null); setText(d.text || ''); setStartedAt(d.startedAt || null); }
+        const needsScene = (sess.ask && !d?.context) || (sess.signals && sess.signals.length && !d?.signal);
+        setStage(d && d.text ? 'write' : needsScene ? 'scene' : 'write');
+        return;
+      }
+
+      // Prompt: never auto-jump past the ask step; keep old token for "See your last story" link
+      if (m) setPastMine(m);
+      if (d && d.text) {
+        setContext(d.context || ''); setSignal(d.signal || null); setText(d.text || ''); setStartedAt(d.startedAt || null);
+        setResumeMode(true);
+      } else if (d) {
+        setContext(d.context || ''); setSignal(d.signal || null);
+      }
+      const needsScene = sess.ask || (sess.signals && sess.signals.length);
+      setStage(needsScene ? 'scene' : 'write');
     }).catch((e) => setErr(String(e.message || e)));
     const t = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(t);
@@ -168,7 +185,7 @@ export default function Flow({ mode, id }) {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Could not save your story.');
       const m = { story: j.story, token: j.token };
-      ls.set(mineKey, m); ls.del(draftKey); setMine(m);
+      ls.set(mineKey, m); ls.del(draftKey); setMine(m); setResumeMode(false); setPastMine(null);
       if (j.warning) setMsg(j.warning);
       if (j.map) { setMap(j.map); setReveal(true); setTimeout(() => setStage('map'), 900); }
       else setStage('waiting');
@@ -300,34 +317,51 @@ export default function Flow({ mode, id }) {
             <h3>{dec.q}</h3>
             {dec.why && <p className="sub">{dec.why}</p>}
           </div>
-          {s.ask ? (
-            <form className="ask" onSubmit={(e) => { e.preventDefault(); if (context.trim()) setStage('write'); }}>
-              <label htmlFor="ask">{s.ask.label}</label>
-              <input id="ask" autoFocus value={context} maxLength={140} onChange={(e) => setContext(e.target.value)} placeholder={s.ask.placeholder} />
-              <p className="note">One line is enough. It sets the scene for your story.</p>
-              <div className="center"><button className="big primary" type="submit" disabled={!context.trim()}>Write for {minutes} minutes →</button></div>
-            </form>
+          {resumeMode ? (
+            <div className="stack" style={{ maxWidth: 480, margin: '0 auto', gap: 14 }}>
+              <p className="sub">You have an unfinished draft for this prompt.</p>
+              <div className="row">
+                <button className="big primary" type="button" onClick={() => setStage('write')}>Continue your draft →</button>
+                <button type="button" className="quiet" onClick={() => {
+                  setText(''); setContext(''); setSignal(null); setStartedAt(null);
+                  ls.del(draftKey); setResumeMode(false);
+                }}>Start fresh</button>
+              </div>
+              {pastMine && <p className="note center"><button type="button" className="textlink" onClick={() => { setMine(pastMine); setStage(map ? 'map' : 'waiting'); }}>See your last story →</button></p>}
+            </div>
           ) : (
             <>
-              <div className="twoways">
-                <div className="way">
-                  <span className="kicker">Already have something in mind?</span>
-                  <button className="big primary" type="button" onClick={() => { setSignal(null); setStage('write'); }}>Write for {minutes} minutes →</button>
-                </div>
-                <div className="way">
-                  <span className="kicker">Want a nudge?</span>
-                  <p className="sub">Pick a signal below. Signals are made-up glimpses of how this could change. They're there to get you imagining, not to tell you what to write.</p>
-                </div>
-              </div>
-              <div className="signals">
-                {s.signals.map((g, i) => (
-                  <button key={i} type="button" className="sigcard" style={{ '--i': i }} onClick={() => { setSignal(g); setStage('write'); }}>
-                    <svg className="sig-art" viewBox="0 0 100 92" dangerouslySetInnerHTML={{ __html: signalIcon(g.type) }} />
-                    {g.type && <span className="sig-type">{g.type}</span>}
-                    <span>{g.text}</span>
-                  </button>
-                ))}
-              </div>
+              {s.ask ? (
+                <form className="ask" onSubmit={(e) => { e.preventDefault(); if (context.trim()) setStage('write'); }}>
+                  <label htmlFor="ask">{s.ask.label}</label>
+                  <input id="ask" autoFocus value={context} maxLength={140} onChange={(e) => setContext(e.target.value)} placeholder={s.ask.placeholder} />
+                  <p className="note">One line is enough. It sets the scene for your story.</p>
+                  <div className="center"><button className="big primary" type="submit" disabled={!context.trim()}>Write for {minutes} minutes →</button></div>
+                </form>
+              ) : (
+                <>
+                  <div className="twoways">
+                    <div className="way">
+                      <span className="kicker">Already have something in mind?</span>
+                      <button className="big primary" type="button" onClick={() => { setSignal(null); setStage('write'); }}>Write for {minutes} minutes →</button>
+                    </div>
+                    <div className="way">
+                      <span className="kicker">Want a nudge?</span>
+                      <p className="sub">Pick a signal below. Signals are made-up glimpses of how this could change. They're there to get you imagining, not to tell you what to write.</p>
+                    </div>
+                  </div>
+                  <div className="signals">
+                    {s.signals.map((g, i) => (
+                      <button key={i} type="button" className="sigcard" style={{ '--i': i }} onClick={() => { setSignal(g); setStage('write'); }}>
+                        <svg className="sig-art" viewBox="0 0 100 92" dangerouslySetInnerHTML={{ __html: signalIcon(g.type) }} />
+                        {g.type && <span className="sig-type">{g.type}</span>}
+                        <span>{g.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {pastMine && <p className="note center" style={{ marginTop: 14 }}><button type="button" className="textlink" onClick={() => { setMine(pastMine); setStage(map ? 'map' : 'waiting'); }}>See your last story →</button></p>}
             </>
           )}
         </section>
@@ -337,6 +371,7 @@ export default function Flow({ mode, id }) {
         <section className="stage">
           <div className="stage-head" style={{ marginBottom: 10 }}>
             <p className="scene">{lead}</p>
+            {s.ask && context && <p className="note center" style={{ marginTop: 4 }}><button type="button" className="textlink change" onClick={() => setStage('scene')}>Change</button></p>}
             <p className="anchor">{ANCHOR}</p>
           </div>
           {signal && (
