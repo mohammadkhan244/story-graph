@@ -158,6 +158,7 @@ export default function StoryMap({
         const you = youId && p.id === youId;
         const sel = selId === p.id;
         const hollow = p.source === 'card-exercise';
+        const testDot = !!p.isTest;
         const lines = labelLines(p.label || '');
         return (
           <g key={p.id} className={'dot' + (you ? ' you' : '') + (onMove ? ' drag' : '')} tabIndex={drawing ? -1 : 0} role="button"
@@ -180,13 +181,15 @@ export default function StoryMap({
                   <circle r={22} className="halo" />
                   <circle r={13} fill="#a72f39" stroke="#fffdf6" strokeWidth={2.5} />
                 </>
+              ) : testDot ? (
+                <Mark shape="circle" r={sel ? 10 : 8} fill="none" stroke="#a72f39" sw={sel ? 3 : 2} />
               ) : (
                 <Mark shape={shape(p.signal)} r={sel ? 10 : 8} fill={hollow ? 'none' : '#afbeb1'} stroke={sel ? '#fffdf6' : '#afbeb1'} sw={sel ? 3 : 2} />
               )}
             </g>
             {(showLabels || you || sel) && (
               <text className={'dlab' + (you ? ' me' : '')} textAnchor="middle" y={you ? 38 : 24}>
-                {you ? <tspan x="0" dy="0">You</tspan> : lines.map((ln, k) => <tspan key={k} x="0" dy={k ? '1.15em' : '0'}>{ln}</tspan>)}
+                {you ? <tspan x="0" dy="0">You</tspan> : testDot ? <tspan x="0" dy="0" style={{ fill: '#a72f39' }}>TEST</tspan> : lines.map((ln, k) => <tspan key={k} x="0" dy={k ? '1.15em' : '0'}>{ln}</tspan>)}
               </text>
             )}
           </g>

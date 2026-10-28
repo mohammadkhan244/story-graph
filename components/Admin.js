@@ -72,7 +72,6 @@ export default function Admin() {
   const [wiQsData, setWiQsData] = useState(null);
   const [wiQsLoading, setWiQsLoading] = useState(false);
   const [testMode, setTestMode] = useState(false);
-  const [includeTest, setIncludeTest] = useState(false);
   const loadedFor = useRef(null);
 
   const say = (t, warn = false) => setStatus({ t, warn });
@@ -147,14 +146,13 @@ export default function Admin() {
   const axesOK = ['x', 'y'].every((k) => axes[k].name && axes[k].low && axes[k].high);
   const sameAxis = (a, b) => !!a && !!b && a.name === b.name && a.low === b.low && a.high === b.high;
   const axesDirty = !!s && axesOK && !(s.axes && sameAxis(s.axes.x, axes.x) && sameAxis(s.axes.y, axes.y));
-  const points = stories
-    .filter((x) => includeTest || !x.is_test)
-    .map((x) => ({
-      id: x.id, label: (x.name || '').trim() || 'Anonymous', signal: x.signal,
-      x: x.x, y: x.y,
-      arrow: x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null,
-      stays: !!x.stays,
-    }));
+  const points = stories.map((x) => ({
+    id: x.id, label: (x.name || '').trim() || 'Anonymous', signal: x.signal,
+    x: x.x, y: x.y,
+    arrow: x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null,
+    stays: !!x.stays,
+    isTest: !!x.is_test,
+  }));
   const { tags, color } = signalColors(points);
   const dot = stories.find((x) => x.id === selDot);
 
@@ -178,7 +176,11 @@ export default function Admin() {
             setTestMode(e.target.checked);
           }} /> Test mode
         </label>
-        <button className="quiet" onClick={async () => { await api('/api/admin/login', 'DELETE'); setAuth({ admin: false, configured: true }); }}>Sign out</button>
+        <button className="quiet" onClick={async () => {
+          if (testMode) { await api('/api/admin/test-mode', 'POST', { on: false }); setTestMode(false); }
+          await api('/api/admin/login', 'DELETE');
+          setAuth({ admin: false, configured: true });
+        }}>Sign out</button>
       </header>
       <div className="grid">
         <div className="col">
@@ -370,12 +372,12 @@ export default function Admin() {
               {s.is_default && !isPrompt && <p className="note">New stories on the default link are placed one at a time on these axes as they come in.</p>}
             </section>
           )}
-          {stories.some((x) => x.is_test) && (
+          {s && stories.some((x) => x.is_test) && (
             <section className="panel stack">
               <h2>Test stories</h2>
-              <p className="note">{stories.filter((x) => x.is_test).length} test {stories.filter((x) => x.is_test).length === 1 ? 'story' : 'stories'} in this session. Test stories are excluded from public maps and counts.</p>
-              <Armed label="Delete all test stories" armedLabel="Tap again to confirm" onConfirm={() => act(async () => {
-                const j = await api('/api/admin/test-stories', 'DELETE');
+              <p className="note">{stories.filter((x) => x.is_test).length} test {stories.filter((x) => x.is_test).length === 1 ? 'story' : 'stories'} for this prompt. They are excluded from public maps and counts.</p>
+              <Armed label="Delete test stories" armedLabel="Tap again to confirm" onConfirm={() => act(async () => {
+                const j = await api(`/api/admin/test-stories?session=${s.id}`, 'DELETE');
                 say(`Deleted ${j.deleted} test ${j.deleted === 1 ? 'story' : 'stories'}.`);
               }, 'Deleting')} />
             </section>
@@ -388,11 +390,10 @@ export default function Admin() {
             <section className="panel">
               <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
                 <h2 style={{ marginBottom: 0 }}>Map · {placed} of {stories.length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
-                {stories.some((x) => x.is_test) && (
-                  <label className="check" style={{ fontSize: 12 }}>
-                    <input type="checkbox" checked={includeTest} onChange={(e) => setIncludeTest(e.target.checked)} /> Include test
-                  </label>
-                )}
+                <button type="button" className="ghost" style={{ fontSize: 13 }} onClick={async () => {
+                  if (!testMode) { await api('/api/admin/test-mode', 'POST', { on: true }); setTestMode(true); }
+                  window.open(link, '_blank');
+                }}>Write a test story →</button>
               </div>
               <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot}
                 onSelect={(pid) => { setSelDot(pid === selDot ? null : pid); }}

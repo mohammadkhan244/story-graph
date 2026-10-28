@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { q } from '@/lib/db';
-import { fail } from '@/lib/auth';
+import { fail, isAdmin } from '@/lib/auth';
 import { readStory, invalid, saveAndPlace, sessionMap } from '@/lib/submit';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export async function POST(req, { params }) {
     if (!s) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     const late = s.ends_at && Date.now() > new Date(s.ends_at).getTime() + GRACE_MS;
     if (s.status !== 'open' || late) return NextResponse.json({ error: 'This session is closed.' }, { status: 403 });
-    const isTest = cookies().get('sm_test')?.value === '1';
+    const isTest = cookies().get('sm_test')?.value === '1' && isAdmin();
     const { story, token, warning } = await saveAndPlace(s, { ...st, isTest });
     const map = s.is_default || s.published ? await sessionMap(s, false) : null;
     return NextResponse.json({ story, token, map, warning });
