@@ -43,7 +43,7 @@ export function Mark({ shape, r, fill, stroke, sw = 2, dash }) {
   return <circle r={r} {...common} />;
 }
 
-function Arrow({ from, to, color, width, opacity = 1, id }) {
+function Arrow({ from, to, color, width, opacity = 1, id, dash }) {
   const x1 = px(from.x), y1 = py(from.y), x2 = px(to.x), y2 = py(to.y);
   const len = Math.hypot(x2 - x1, y2 - y1);
   if (len < 8) return null;
@@ -55,8 +55,8 @@ function Arrow({ from, to, color, width, opacity = 1, id }) {
   const l2 = `${x2 - s * (ux * Math.cos(-a) - uy * Math.sin(-a))},${y2 - s * (uy * Math.cos(-a) + ux * Math.sin(-a))}`;
   return (
     <g opacity={opacity} key={id} className="arrow">
-      <line x1={sx} y1={sy} x2={hx} y2={hy} stroke={color} strokeWidth={width} strokeLinecap="round" />
-      <polygon points={`${x2},${y2} ${l1} ${l2}`} fill={color} />
+      <line x1={sx} y1={sy} x2={hx} y2={hy} stroke={color} strokeWidth={width} strokeLinecap="round" strokeDasharray={dash} />
+      <polygon points={`${x2},${y2} ${l1} ${l2}`} fill={color} opacity={dash ? 0.35 : 1} />
     </g>
   );
 }
@@ -64,6 +64,7 @@ function Arrow({ from, to, color, width, opacity = 1, id }) {
 export default function StoryMap({
   axes, quads, points = [], background = [], youId, selId, onSelect, onMove,
   arrowFor, onArrow, showArrows = true, showLabels = true, reveal = false, big = false,
+  pastArrowEnds,
 }) {
   const svgRef = useRef(null);
   const [drag, setDrag] = useState(null);
@@ -108,14 +109,22 @@ export default function StoryMap({
           <text className="qlab" x={W - M - 12} y={M + 24} textAnchor="end">{short(quads.hh, 30)}</text>
         </>
       )}
-      <text className="pole" x={M} y={H - M + 24}>← {short(ax.low || '', 30)}</text>
-      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end">{short(ax.high || '', 30)} →</text>
+      <text className="pole" x={M} y={H - M + 24}>← {short(ax.low || '', 30)}{ax.lowDesc && <title>{ax.low}: {ax.lowDesc}</title>}</text>
+      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end">{short(ax.high || '', 30)} →{ax.highDesc && <title>{ax.high}: {ax.highDesc}</title>}</text>
       <text className="axname" x={W / 2} y={H - 18} textAnchor="middle">{ax.name || ''}</text>
-      <text className="pole" x={M - 22} y={H - M} transform={`rotate(-90 ${M - 22} ${H - M})`}>← {short(ay.low || '', 30)}</text>
-      <text className="pole" x={M - 22} y={M} textAnchor="end" transform={`rotate(-90 ${M - 22} ${M})`}>{short(ay.high || '', 30)} →</text>
+      <text className="pole" x={M - 22} y={H - M} transform={`rotate(-90 ${M - 22} ${H - M})`}>← {short(ay.low || '', 30)}{ay.lowDesc && <title>{ay.low}: {ay.lowDesc}</title>}</text>
+      <text className="pole" x={M - 22} y={M} textAnchor="end" transform={`rotate(-90 ${M - 22} ${M})`}>{short(ay.high || '', 30)} →{ay.highDesc && <title>{ay.high}: {ay.highDesc}</title>}</text>
       <text className="axname" x={20} y={H / 2} textAnchor="middle" transform={`rotate(-90 20 ${H / 2})`}>{ay.name || ''}</text>
 
       {background.map((p) => <circle key={'bg' + p.id} className="bgdot" cx={px(p.x)} cy={py(p.y)} r={4} />)}
+
+      {pastArrowEnds && (() => {
+        const me = points.find((p) => p.id === youId);
+        if (!me || me.x == null) return null;
+        return pastArrowEnds.map((end, i) => (
+          <Arrow key={'past' + i} id={'past' + i} from={me} to={end} color="#79998b" width={1.5} opacity={0.3} dash="6 4" />
+        ));
+      })()}
 
       {showArrows && points.filter((p) => p.arrow && p.x != null && p.id !== youId).map((p) => (
         <Arrow key={'a' + p.id} id={'a' + p.id} from={p} to={p.arrow} color="#afbeb1" width={2} opacity={0.45} />

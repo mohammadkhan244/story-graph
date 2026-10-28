@@ -9,13 +9,14 @@ export async function GET(_req, { params }) {
   try {
     const s = (await q('select * from sessions where id=$1', [params.id]))[0];
     if (!s) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    const stories = await q('select * from stories where session_id=$1 order by created_at', [s.id]);
+    const stories = (await q('select * from stories where session_id=$1 order by created_at', [s.id]))
+      .map(({ reading: _r, token_hash: _t, ...rest }) => rest);
     return NextResponse.json({ session: s, stories });
   } catch (e) { return fail(e); }
 }
 
 const cleanAxis = (a) => a && typeof a === 'object'
-  ? { name: String(a.name || '').slice(0, 80), low: String(a.low || '').slice(0, 80), high: String(a.high || '').slice(0, 80), why: String(a.why || '').slice(0, 400) }
+  ? { name: String(a.name || '').slice(0, 80), low: String(a.low || '').slice(0, 80), high: String(a.high || '').slice(0, 80), why: String(a.why || '').slice(0, 400), lowDesc: String(a.lowDesc || '').slice(0, 300), highDesc: String(a.highDesc || '').slice(0, 300) }
   : null;
 
 function cleanSignals(raw) {

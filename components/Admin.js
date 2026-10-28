@@ -33,7 +33,7 @@ function Login({ configured, onDone }) {
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const mmss = (ms) => { const s = Math.ceil(Math.max(0, ms) / 1000); return pad(Math.floor(s / 60)) + ':' + pad(s % 60); };
-const emptyAxis = { name: '', low: '', high: '', why: '' };
+const emptyAxis = { name: '', low: '', high: '', why: '', lowDesc: '', highDesc: '' };
 
 /* Serialize signals (possibly {type,text} objects) to one-per-line "TYPE: text" */
 function signalsToText(signals) {
@@ -298,6 +298,10 @@ export default function Admin() {
                     <div className="two">
                       <input aria-label="Low pole" placeholder={k === 'x' ? 'Left pole' : 'Bottom pole'} value={axes[k].low} onChange={(e) => setAxes({ ...axes, [k]: { ...axes[k], low: e.target.value, why: '' } })} />
                       <input aria-label="High pole" placeholder={k === 'x' ? 'Right pole' : 'Top pole'} value={axes[k].high} onChange={(e) => setAxes({ ...axes, [k]: { ...axes[k], high: e.target.value, why: '' } })} />
+                    </div>
+                    <div className="two">
+                      <input aria-label="Low description" placeholder="Low pole description (optional)" value={axes[k].lowDesc || ''} onChange={(e) => setAxes({ ...axes, [k]: { ...axes[k], lowDesc: e.target.value } })} style={{ fontSize: 13 }} />
+                      <input aria-label="High description" placeholder="High pole description (optional)" value={axes[k].highDesc || ''} onChange={(e) => setAxes({ ...axes, [k]: { ...axes[k], highDesc: e.target.value } })} style={{ fontSize: 13 }} />
                     </div>
                   </div>
                   {axes[k].why && <p className="why">{axes[k].why}</p>}

@@ -37,7 +37,7 @@ function corners(points, me) {
   const empty = Object.keys(counts).filter((k) => counts[k] === 0);
   return { same: mine ? counts[mine] - 1 : 0, empty };
 }
-function cornerName(k, axes) { return `${k[0] === 'l' ? axes.x.low : axes.x.high} · ${k[1] === 'l' ? axes.y.low : axes.y.high}`; }
+function cornerPoles(k, axes) { return `${k[0] === 'l' ? axes.x.low : axes.x.high} + ${k[1] === 'l' ? axes.y.low : axes.y.high}`; }
 
 function questions(axes, me) {
   if (!me) return [];
@@ -83,13 +83,20 @@ export default function Flow({ mode, id }) {
   const [msg, setMsg] = useState('');
   const [mine, setMine] = useState(null); // {story, token}
   const [drawing, setDrawing] = useState(false);
+  const [pastArrows, setPastArrows] = useState([]);
+  const arrowsKey = `sm-past-arrows-${mode}-${id}`;
   const [peek, setPeek] = useState(null);
   const [qi, setQi] = useState(0);
   const [notes, setNotes] = useState({});
   const [listening, setListening] = useState(false);
   const [reveal, setReveal] = useState(false);
+  const [readingStage, setReadingStage] = useState('idle'); // idle | picking | loading | done
+  const [readingResult, setReadingResult] = useState(null);
+  const [readingStageVal, setReadingStageVal] = useState('');
+  const [readingLens, setReadingLens] = useState('');
   const recRef = useRef(null);
   const taRef = useRef(null);
+  const readingKey = `sm-reading-${mode}-${id}`;
 
   async function load() {
     const r = await fetch(base, { cache: 'no-store' });
@@ -205,10 +212,42 @@ export default function Flow({ mode, id }) {
     saveArrow({ stays: true }); setDrawing(false);
   }
   function restart() {
-    ls.del(mineKey); ls.del(draftKey);
+    ls.del(mineKey); ls.del(draftKey); ls.del(arrowsKey); ls.del(readingKey);
     window.location.reload();
   }
-  useEffect(() => { if (mine) setNotes(ls.get('sm-notes-' + mine.story.id) || {}); }, [mine]);
+
+  async function fetchReading() {
+    setReadingStage('loading'); setMsg('');
+    try {
+      const r = await fetch(`/api/stories/${mine.story.id}/reading`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: mine.token, stage: readingStageVal, lens: readingLens }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setReadingStage('picking'); setMsg(j.error || 'Could not get reading.'); return; }
+      ls.set(readingKey, j.reading);
+      setReadingResult(j.reading);
+      setReadingStage('done');
+    } catch (e) { setReadingStage('picking'); setMsg(String(e.message || e)); }
+  }
+  function tryAnotherDirection() {
+    if (me && me.arrow) {
+      const updated = [...pastArrows, me.arrow].slice(-4);
+      setPastArrows(updated);
+      ls.set(arrowsKey, updated);
+    }
+    setQi(0);
+    setDrawing(true);
+    setStage('map');
+  }
+  useEffect(() => {
+    if (mine) {
+      setNotes(ls.get('sm-notes-' + mine.story.id) || {});
+      setPastArrows(ls.get(arrowsKey) || []);
+      const saved = ls.get(readingKey);
+      if (saved) { setReadingResult(saved); setReadingStage('done'); }
+    }
+  }, [mine]); // eslint-disable-line react-hooks/exhaustive-deps
   function note(i, v) { const n = { ...notes, [i]: v }; setNotes(n); if (mine) ls.set('sm-notes-' + mine.story.id, n); }
 
   if (err) return <main className="flow"><BrandBar /><p className="warn center">{err}</p></main>;
@@ -368,8 +407,26 @@ export default function Flow({ mode, id }) {
               <StoryMap axes={map.axes} quads={map.quads} points={points} background={map.background || []}
                 youId={mine && mine.story.id} selId={peek} reveal={reveal}
                 onSelect={(pid) => setPeek(pid === peek ? null : pid)}
-                arrowFor={drawing && mine ? mine.story.id : null} onArrow={setArrow} />
+                arrowFor={drawing && mine ? mine.story.id : null} onArrow={setArrow}
+                pastArrowEnds={pastArrows.length ? pastArrows : undefined} />
             </div>
+            {map.axes && (map.axes.x.lowDesc || map.axes.y.lowDesc) && (
+              <div className="axis-legend">
+                <span className="kicker">What the axes mean</span>
+                {['x', 'y'].map((k) => {
+                  const ax = map.axes[k];
+                  if (!ax || (!ax.lowDesc && !ax.highDesc)) return null;
+                  const dir = k === 'x' ? 'Horizontal' : 'Vertical';
+                  return (
+                    <div key={k} className="axis-legend-row">
+                      <strong>{dir}: {ax.name}</strong>
+                      {ax.lowDesc && <span><em>← {ax.low}</em> {ax.lowDesc}</span>}
+                      {ax.highDesc && <span><em>{ax.high} →</em> {ax.highDesc}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div className="legend">
               <span><svg viewBox="-10 -10 20 20"><circle r="7" fill="#a72f39" /></svg>You</span>
               {tags.length > 1 && tags.slice(0, 5).map((t) => (
@@ -389,8 +446,8 @@ export default function Flow({ mode, id }) {
                   const c = corners(points, me);
                   return (
                     <p className="note">
-                      {c.same > 0 ? `${c.same} ${c.same === 1 ? 'other story' : 'other stories'} landed in your corner. ` : 'Nobody else is in your corner yet. '}
-                      {c.empty.length > 0 && <>Nobody has written the <em>{cornerName(c.empty[0], map.axes)}</em> corner.</>}
+                      {c.same === 0 ? "You're the first story in this corner. " : `You're one of ${c.same + 1} stories in this corner. `}
+                      {c.empty.length > 0 && <>Nobody has written this corner yet: <em>{cornerPoles(c.empty[0], map.axes)}</em>.</>}
                     </p>
                   );
                 })()}
@@ -422,7 +479,7 @@ export default function Flow({ mode, id }) {
                   {qi < myQs.length - 1
                     ? <button type="button" onClick={() => setQi(qi + 1)}>Next question</button>
                     : <button type="button" onClick={() => setStage('end')}>Done</button>}
-                  <button type="button" className="textlink" onClick={() => setStage('map')}>Redraw arrow</button>
+                  <button type="button" className="textlink" onClick={tryAnotherDirection}>Try another direction</button>
                 </div>
               </div>
             )}
@@ -434,8 +491,92 @@ export default function Flow({ mode, id }) {
                 <div className="endcards">
                   {!isSession && <button type="button" className="endcard" onClick={restart}><strong>Write another</strong>Same question, new story.</button>}
                   <a className="endcard" href="/"><strong>Try a different decision</strong>Four more cards are waiting.</a>
-                  <a className="endcard" href="https://early-warning-system-kappa.vercel.app/" target="_blank" rel="noreferrer"><strong>Get the full reading</strong>Write Your Future reads what your story assumes.</a>
                 </div>
+                <button type="button" className="textlink" onClick={tryAnotherDirection}>Try another direction</button>
+                {!isSession && (
+                  <div className="reading-panel">
+                    {readingStage === 'idle' && (
+                      <button type="button" className="endcard reading-cta" onClick={() => setReadingStage('picking')}>
+                        <strong>Get your reading</strong>What your story reveals that you didn't plan to write.
+                      </button>
+                    )}
+                    {readingStage === 'picking' && (
+                      <div className="stack">
+                        <span className="kicker">Where are you with this decision?</span>
+                        <div className="stage-picks">
+                          {[['early', 'Just starting', "You're still figuring out what you want."],
+                            ['mid', 'In the middle', "You've gone some distance. Not done yet."],
+                            ['deep', 'Deep in it', "You've been here a long time. This is your world."]].map(([val, label, desc]) => (
+                            <button key={val} type="button"
+                              className={'stage-pick' + (readingStageVal === val ? ' on' : '')}
+                              onClick={() => setReadingStageVal(val)}>
+                              <strong>{label}</strong>{desc}
+                            </button>
+                          ))}
+                        </div>
+                        <div>
+                          <label htmlFor="rlens" className="note">A lens or worldview to read it through (optional)</label>
+                          <input id="rlens" value={readingLens} onChange={(e) => setReadingLens(e.target.value)}
+                            placeholder="e.g. stoicism, systems thinking…" maxLength={200} />
+                        </div>
+                        <div className="row">
+                          <button type="button" className="big primary" disabled={!readingStageVal} onClick={fetchReading}>Read my story</button>
+                          <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Not now</button>
+                        </div>
+                        {msg && <p className="warn">{msg}</p>}
+                      </div>
+                    )}
+                    {readingStage === 'loading' && (
+                      <div className="reading-loading">
+                        <svg viewBox="0 0 180 180" aria-hidden="true">
+                          {[34, 54, 74, 88].map((r, i) => <ellipse key={i} cx="90" cy="90" rx={r} ry={r * 0.55} fill="none" stroke={i % 2 ? '#79998b' : '#afbeb1'} strokeWidth="1.5" />)}
+                          <circle cx="90" cy="90" r="8" fill="#a72f39" />
+                        </svg>
+                        <p className="sub">Reading your story…</p>
+                      </div>
+                    )}
+                    {readingStage === 'done' && readingResult && (() => {
+                      const raw = readingResult.raw || '';
+                      const chunks = ('## ' + raw.replace(/^\s*## /, '')).split(/\n(?=## )/);
+                      const sections = chunks.map((chunk) => {
+                        const nl = chunk.indexOf('\n');
+                        const header = (nl === -1 ? chunk : chunk.slice(0, nl)).replace(/^## /, '').trim();
+                        const body = nl === -1 ? '' : chunk.slice(nl + 1).trim();
+                        return { header, body };
+                      }).filter((s) => s.header);
+                      let oneMoveText = '';
+                      const renderedSections = sections.map((sec) => {
+                        let body = sec.body;
+                        if (sec.header.startsWith('PART 8')) {
+                          const omIdx = body.search(/\bONE MOVE\b/);
+                          if (omIdx !== -1) { oneMoveText = body.slice(omIdx + 8).trim(); body = body.slice(0, omIdx).trim(); }
+                        }
+                        return { ...sec, body };
+                      });
+                      return (
+                        <div className="reading-sections">
+                          {renderedSections.map(({ header, body }) => {
+                            const isPart8 = header.startsWith('PART 8');
+                            return (
+                              <details key={header} className={'reading-section' + (isPart8 ? ' highlight' : '')} open={isPart8 || undefined}>
+                                <summary>{header}</summary>
+                                <div className="reading-body">
+                                  {body.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
+                                </div>
+                              </details>
+                            );
+                          })}
+                          {oneMoveText && (
+                            <div className="one-move-card">
+                              <span className="kicker">One Move</span>
+                              <p>{oneMoveText}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             )}
 
