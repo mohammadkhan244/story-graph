@@ -323,7 +323,7 @@ export default function Flow({ mode, id }) {
                 {s.signals.map((g, i) => (
                   <button key={i} type="button" className="sigcard" style={{ '--i': i }} onClick={() => { setSignal(g); setStage('write'); }}>
                     <svg className="sig-art" viewBox="0 0 100 92" dangerouslySetInnerHTML={{ __html: signalIcon(g.type) }} />
-                    <span className="sig-type">{g.type}</span>
+                    {g.type && <span className="sig-type">{g.type}</span>}
                     <span>{g.text}</span>
                   </button>
                 ))}
