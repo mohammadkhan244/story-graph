@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useRef, useState } from 'react';
 import { SHAPES } from '@/lib/cards';
 
@@ -64,7 +64,7 @@ function Arrow({ from, to, color, width, opacity = 1, id, dash }) {
 export default function StoryMap({
   axes, quads, points = [], background = [], youId, selId, onSelect, onMove,
   arrowFor, onArrow, showArrows = true, showLabels = true, reveal = false, big = false,
-  pastArrowEnds,
+  pastArrowEnds, whatIfFor, whatIfTo,
 }) {
   const svgRef = useRef(null);
   const [drag, setDrag] = useState(null);
@@ -136,6 +136,19 @@ export default function StoryMap({
         return head ? <Arrow id="mine" from={me} to={head} color="#fffdf6" width={3.5} /> : null;
       })()}
       {drawing && arrowFor !== youId && origin && draft && <Arrow id="draft" from={origin} to={draft} color="#fffdf6" width={3} />}
+
+      {whatIfFor && whatIfTo && (() => {
+        const wif = points.find((p) => p.id === whatIfFor);
+        if (!wif || wif.x == null) return null;
+        const mx = (px(wif.x) + px(whatIfTo.x)) / 2;
+        const my = (py(wif.y) + py(whatIfTo.y)) / 2 - 12;
+        return (
+          <g className="whatif-arrow">
+            <Arrow id="whatif" from={wif} to={whatIfTo} color="#a5c7d1" width={2.5} dash="9 5" />
+            <text x={mx} y={my} textAnchor="middle" className="whatif-lbl">what if</text>
+          </g>
+        );
+      })()}
 
       {ordered.map((p, i) => {
         const scored = p.x != null && p.y != null;

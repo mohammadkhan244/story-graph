@@ -235,6 +235,20 @@ svg.map.drawing { cursor: crosshair; }
 .one-move-card .kicker { color: var(--ruby); }
 .one-move-card p { font-size: 14px; line-height: 1.6; color: var(--label); margin: 0; }
 
+/* what-if arrow label in SVG */
+.whatif-lbl { font: 600 10px var(--labelf); letter-spacing: .1em; text-transform: uppercase; fill: var(--steel); }
+
+/* questions list (admin + presenter) */
+.qs-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; list-style: decimal; }
+.qs-list li { font-size: 13px; line-height: 1.6; color: var(--label); }
+.qs-list li em { font-style: normal; color: var(--paper); }
+.qs-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 860px) { .qs-cols { grid-template-columns: 1fr; } }
+
+/* presenter larger qs for shared screen */
+.qs-large .qs-list li { font-size: 16px; }
+.qs-large.qs-cols { gap: 28px; }
+
 .endcards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .endcard { background: var(--ink-2); border: 1px solid var(--frame); border-radius: 12px; padding: 18px; text-align: left; color: var(--label); font: 400 15px var(--body); display: grid; gap: 6px; text-decoration: none; }
 .endcard strong { font: 400 20px var(--title); color: var(--paper); }

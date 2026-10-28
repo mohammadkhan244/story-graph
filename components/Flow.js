@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryMap, { Mark, signalColors } from './StoryMap';
 import BrandBar from './BrandBar';
 import { artSvg, decision, signalIcon } from '@/lib/cards';
+import { questions } from '@/lib/questions';
 
 const ANCHOR = 'Start with a specific morning. Where are you? What do you see first?';
 const STEPS = ['Scene', 'Write', 'Name', 'Map', 'Think'];
@@ -38,28 +39,6 @@ function corners(points, me) {
   return { same: mine ? counts[mine] - 1 : 0, empty };
 }
 function cornerPoles(k, axes) { return `${k[0] === 'l' ? axes.x.low : axes.x.high} + ${k[1] === 'l' ? axes.y.low : axes.y.high}`; }
-
-function questions(axes, me) {
-  if (!me) return [];
-  if (me.stays || !me.arrow) return [
-    <>What has to stay true for you to remain where your dot is?</>,
-    <>What could pull your dot away from here without you noticing?</>,
-    <>Who is already living where you are, and what do they know that you don't?</>,
-    <>What's one move you could make this week that would tell you staying here is right?</>,
-  ];
-  const dx = me.arrow.x - me.x, dy = me.arrow.y - me.y;
-  const a = Math.abs(dx) >= Math.abs(dy) ? axes.x : axes.y;
-  const from = (Math.abs(dx) >= Math.abs(dy) ? me.x : me.y) < 0 ? a.low : a.high;
-  const to = (Math.abs(dx) >= Math.abs(dy) ? me.arrow.x : me.arrow.y) < 0 ? a.low : a.high;
-  const P = from === to ? <>further toward <em>{to}</em></> : <>from <em>{from}</em> toward <em>{to}</em></>;
-  return [
-    <>What needs to happen first to move you {P}?</>,
-    <>What must be true for that future to exist, for you, for the people around you, and for the wider world?</>,
-    <>Where is that future already being built, or resisted?</>,
-    <>What's the hardest part of getting there to believe?</>,
-    <>What's one move you could make this week that would tell you if this direction is right?</>,
-  ];
-}
 
 export default function Flow({ mode, id }) {
   const isSession = mode === 'session';
@@ -274,7 +253,7 @@ export default function Flow({ mode, id }) {
         <section className="stage center" style={{ gap: 18, paddingTop: 40 }}>
           <div className="icon-badge" dangerouslySetInnerHTML={{ __html: artSvg(slug) }} />
           <h3>{dec.q}</h3>
-          <p className="sub">Writing hasn’t started yet. This page opens by itself when it does.</p>
+          <p className="sub">Writing hasn't started yet. This page opens by itself when it does.</p>
         </section>
       )}
 
@@ -301,7 +280,7 @@ export default function Flow({ mode, id }) {
                 </div>
                 <div className="way">
                   <span className="kicker">Want a nudge?</span>
-                  <p className="sub">Pick a signal below. Signals are made-up glimpses of how this could change. They’re there to get you imagining, not to tell you what to write.</p>
+                  <p className="sub">Pick a signal below. Signals are made-up glimpses of how this could change. They're there to get you imagining, not to tell you what to write.</p>
                 </div>
               </div>
               <div className="signals">
@@ -331,7 +310,7 @@ export default function Flow({ mode, id }) {
                 <div className="row" style={{ marginTop: 8 }}><button type="button" className="textlink change" onClick={() => setStage('scene')}>Pick another</button><button type="button" className="textlink change" onClick={() => setSignal(null)}>Write without it</button></div></div>
             </div>
           )}
-          <div className="rules"><span>Don’t plan it</span><span>Don’t make it good</span><span>Anything is valid</span><span>Keep going</span></div>
+          <div className="rules"><span>Don't plan it</span><span>Don't make it good</span><span>Anything is valid</span><span>Keep going</span></div>
           {!startedAt && !(isSession && sharedEnd) ? (
             <div className="center" style={{ marginTop: 26, gap: 14 }}>
               <button className="big primary" type="button" onClick={startWriting}>Start my {minutes} minutes</button>
@@ -350,7 +329,7 @@ export default function Flow({ mode, id }) {
               {drift && <p className="nudge">Stay in the scene. What are you doing right now?</p>}
               {over && <p className="nudge">Time. Finish your sentence, then give it a name.</p>}
               <div className="center" style={{ marginTop: 18 }}>
-                <button className="big" type="button" disabled={text.trim().length < 20} onClick={() => { if (recRef.current) recRef.current.stop(); setStage('name'); }}>I’m done writing →</button>
+                <button className="big" type="button" disabled={text.trim().length < 20} onClick={() => { if (recRef.current) recRef.current.stop(); setStage('name'); }}>I'm done writing →</button>
               </div>
             </>
           )}
@@ -362,7 +341,7 @@ export default function Flow({ mode, id }) {
         <section className="stage narrow">
           <div className="stage-head">
             <h3>Give this future a name.</h3>
-            <p className="sub">Three to five words. What you’d call this world.</p>
+            <p className="sub">Three to five words. What you'd call this world.</p>
           </div>
           <form className="stack" onSubmit={(e) => { e.preventDefault(); submit(); }}>
             <input autoFocus aria-label="Scenario headline" value={headline} maxLength={80} onChange={(e) => setHeadline(e.target.value)} placeholder="The quiet takeover" style={{ font: "400 24px var(--title)", textAlign: 'center' }} />
@@ -388,7 +367,7 @@ export default function Flow({ mode, id }) {
             <circle cx="90" cy="90" r="8" fill="#a72f39" />
           </svg>
           <h3>Reading your story…</h3>
-          <p className="sub">Finding where it lands among everyone else’s.</p>
+          <p className="sub">Finding where it lands among everyone else's.</p>
         </section>
       )}
 
@@ -433,7 +412,7 @@ export default function Flow({ mode, id }) {
                 <span key={t}><svg viewBox="-10 -10 20 20"><Mark shape={shape(t)} r={6} fill="#afbeb1" stroke="#afbeb1" /></svg>{t.split(':')[0]}</span>
               ))}
               {points.some((p) => p.source === 'card-exercise') && <span><svg viewBox="-10 -10 20 20"><circle r="6" fill="none" stroke="#afbeb1" strokeWidth="2" /></svg>From the 90-second card exercise</span>}
-              {points.some((p) => p.arrow) && <span>→ where they’d rather be</span>}
+              {points.some((p) => p.arrow) && <span>→ where they'd rather be</span>}
             </div>
           </div>
           <div className="side">
@@ -441,7 +420,7 @@ export default function Flow({ mode, id }) {
               <div className="landed">
                 <span className="kicker">Where you landed</span>
                 <p className="where">{where(map.axes, me)}</p>
-                {me.xq && <p className="quote">“{me.xq}”</p>}
+                {me.xq && <p className="quote">"{me.xq}"</p>}
                 {(() => {
                   const c = corners(points, me);
                   return (
@@ -453,14 +432,14 @@ export default function Flow({ mode, id }) {
                 })()}
                 {!drawing ? (
                   <div className="stack" style={{ marginTop: 6 }}>
-                    <button className="big primary" type="button" onClick={() => { setDrawing(true); setPeek(null); }}>{me.arrow || me.stays ? 'Redraw my arrow' : 'Draw where you’d rather be'}</button>
+                    <button className="big primary" type="button" onClick={() => { setDrawing(true); setPeek(null); }}>{me.arrow || me.stays ? 'Redraw my arrow' : "Draw where you'd rather be"}</button>
                     {(me.arrow || me.stays) && <button className="big" type="button" onClick={() => { setQi(0); setStage('think'); }}>Think it through →</button>}
                   </div>
                 ) : (
                   <div className="stack" style={{ marginTop: 6 }}>
-                    <p className="nudge">Tap or drag on the map to where you’d rather be. Anywhere you like.</p>
+                    <p className="nudge">Tap or drag on the map to where you'd rather be. Anywhere you like.</p>
                     <div className="row">
-                      <button type="button" onClick={stay}>I’d stay here</button>
+                      <button type="button" onClick={stay}>I'd stay here</button>
                       <button type="button" className="quiet" onClick={() => setDrawing(false)}>Cancel</button>
                     </div>
                   </div>

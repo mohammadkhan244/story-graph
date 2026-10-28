@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import StoryMap, { fmt, signalColors } from './StoryMap';
+import { questions, directionLine } from '@/lib/questions';
 
 async function api(path, method = 'GET', body) {
   const r = await fetch(path, { method, cache: 'no-store', headers: body ? { 'content-type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -66,6 +67,8 @@ export default function Admin() {
   const [cands, setCands] = useState([]);
   const [selDot, setSelDot] = useState(null);
   const [open, setOpen] = useState({});
+  const [whatIfArrow, setWhatIfArrow] = useState(null);
+  const [whatIfDrawing, setWhatIfDrawing] = useState(false);
   const loadedFor = useRef(null);
 
   const say = (t, warn = false) => setStatus({ t, warn });
@@ -107,6 +110,7 @@ export default function Admin() {
     return () => clearInterval(t);
   }, [auth, selId, loadDet]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { setWhatIfArrow(null); setWhatIfDrawing(false); }, [selDot]);
 
   if (!auth) return <main className="wrap"><p className="note">Loading…</p></main>;
   if (!auth.admin) return <main className="wrap"><header className="top"><h1>Story Map</h1><span className="chip">Admin</span></header><Login configured={auth.configured} onDone={() => setAuth({ admin: true, configured: true })} /></main>;
@@ -122,7 +126,12 @@ export default function Admin() {
   const axesOK = ['x', 'y'].every((k) => axes[k].name && axes[k].low && axes[k].high);
   const sameAxis = (a, b) => !!a && !!b && a.name === b.name && a.low === b.low && a.high === b.high;
   const axesDirty = !!s && axesOK && !(s.axes && sameAxis(s.axes.x, axes.x) && sameAxis(s.axes.y, axes.y));
-  const points = stories.map((x) => ({ id: x.id, label: (x.name || '').trim() || 'Anonymous', signal: x.signal, x: x.x, y: x.y }));
+  const points = stories.map((x) => ({
+    id: x.id, label: (x.name || '').trim() || 'Anonymous', signal: x.signal,
+    x: x.x, y: x.y,
+    arrow: x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null,
+    stays: !!x.stays,
+  }));
   const { tags, color } = signalColors(points);
   const dot = stories.find((x) => x.id === selDot);
 
@@ -258,20 +267,33 @@ export default function Admin() {
           {s && (
             <section className="panel">
               <h2>Stories ({stories.length})</h2>
-              {stories.length === 0 ? <p className="note">Stories appear here as people submit.</p> : stories.map((x) => (
-                <details key={x.id} className="story" open={!!open[x.id]} onToggle={(e) => setOpen({ ...open, [x.id]: e.currentTarget.open })}>
-                  <summary>
-                    <i className="sw" style={{ background: color(x.signal) }} />
-                    <strong>{(x.name || '').trim() || 'Anonymous'}</strong>
-                    <span className="tag">{x.signal || 'no signal'}{x.source === 'seed-recap' ? ' · recap' : ''}{x.x == null ? ' · not placed' : ''}</span>
-                    {x.headline && <span className="tag" style={{ fontStyle: 'italic' }}> · "{x.headline}"</span>}
-                  </summary>
-                  <div className="stack" style={{ padding: '6px 0 8px' }}>
-                    <p className="storytext">{x.body}</p>
-                    <div><Armed label="Delete story" armedLabel="Tap again to delete" onConfirm={() => act(async () => { await api(`/api/admin/stories/${x.id}`, 'DELETE'); say('Story deleted.'); }, 'Deleting')} /></div>
-                  </div>
-                </details>
-              ))}
+              {stories.length === 0 ? <p className="note">Stories appear here as people submit.</p> : stories.map((x) => {
+                const xArrow = x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null;
+                const xQs = s.axes && x.x != null ? questions(s.axes, { x: x.x, y: x.y, stays: !!x.stays, arrow: xArrow }) : [];
+                return (
+                  <details key={x.id} className="story" open={!!open[x.id]} onToggle={(e) => setOpen({ ...open, [x.id]: e.currentTarget.open })}>
+                    <summary>
+                      <i className="sw" style={{ background: color(x.signal) }} />
+                      <strong>{(x.name || '').trim() || 'Anonymous'}</strong>
+                      <span className="tag">{x.signal || 'no signal'}{x.source === 'seed-recap' ? ' · recap' : ''}{x.x == null ? ' · not placed' : ''}</span>
+                      {x.headline && <span className="tag" style={{ fontStyle: 'italic' }}> · "{x.headline}"</span>}
+                      {s.axes && x.x != null && <span className="tag"> · {directionLine(s.axes, x)}</span>}
+                    </summary>
+                    <div className="stack" style={{ padding: '6px 0 8px' }}>
+                      <p className="storytext">{x.body}</p>
+                      {xQs.length > 0 && (
+                        <div>
+                          <span className="kicker" style={{ display: 'block', marginBottom: 6 }}>Questions they saw</span>
+                          <ol className="qs-list">
+                            {xQs.map((q, i) => <li key={i}>{q}</li>)}
+                          </ol>
+                        </div>
+                      )}
+                      <div><Armed label="Delete story" armedLabel="Tap again to delete" onConfirm={() => act(async () => { await api(`/api/admin/stories/${x.id}`, 'DELETE'); say('Story deleted.'); }, 'Deleting')} /></div>
+                    </div>
+                  </details>
+                );
+              })}
             </section>
           )}
 
@@ -325,16 +347,63 @@ export default function Admin() {
           {s && (
             <section className="panel">
               <h2>Map · {placed} of {stories.length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
-              <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot} onSelect={setSelDot}
+              <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot}
+                onSelect={(pid) => { setSelDot(pid === selDot ? null : pid); }}
                 onMove={(id, x, y) => {
                   setDet({ ...det, stories: stories.map((t) => (t.id === id ? { ...t, x, y, moved: true } : t)) });
                   setSelDot(id);
                   api(`/api/admin/stories/${id}`, 'PATCH', { x, y }).catch((e) => say(e.message, true));
-                }} />
+                }}
+                arrowFor={whatIfDrawing ? selDot : null}
+                onArrow={whatIfDrawing ? ((_id, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
+                whatIfFor={whatIfArrow && selDot ? selDot : null}
+                whatIfTo={whatIfArrow}
+                showArrows />
               {tags.length > 0 && <div className="legend">{tags.map((t) => <span key={t}><i className="sw" style={{ background: color(t) }} />{t}</span>)}</div>}
             </section>
           )}
           {s && s.readout && <section className="panel"><h2>What the map shows</h2><p className="readout">{s.readout}</p></section>}
+          {dot && dot.x != null && s.axes && (() => {
+            const dotForQ = { x: dot.x, y: dot.y, stays: !!dot.stays, arrow: dot.ax != null ? { x: dot.ax, y: dot.ay } : null };
+            const realQs = questions(s.axes, dotForQ);
+            const wiQs = whatIfArrow ? questions(s.axes, { ...dotForQ, arrow: whatIfArrow }) : [];
+            return (
+              <section className="panel stack">
+                <h2>
+                  {(dot.name || '').trim() || 'This story'}
+                  {dot.stays ? ' · would stay' : dot.ax != null ? ` · ${directionLine(s.axes, dot)}` : ' · no arrow yet'}
+                </h2>
+                <div className="row" style={{ flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => { setWhatIfArrow(null); setWhatIfDrawing(true); }}>
+                    {whatIfDrawing ? 'Tap the map…' : 'What if…'}
+                  </button>
+                  {whatIfArrow && !whatIfDrawing && <button type="button" className="quiet" onClick={() => setWhatIfDrawing(true)}>Redraw</button>}
+                  {whatIfArrow && <button type="button" className="quiet" onClick={() => setWhatIfArrow(null)}>Clear what if</button>}
+                  {whatIfDrawing && <button type="button" className="quiet" onClick={() => setWhatIfDrawing(false)}>Cancel</button>}
+                </div>
+                {(realQs.length > 0 || wiQs.length > 0) && (
+                  <div className={wiQs.length ? 'qs-cols' : ''}>
+                    {realQs.length > 0 && (
+                      <div>
+                        {wiQs.length > 0 && <div className="kicker" style={{ marginBottom: 6 }}>Their direction</div>}
+                        <ol className="qs-list">
+                          {realQs.map((q, i) => <li key={i}>{q}</li>)}
+                        </ol>
+                      </div>
+                    )}
+                    {wiQs.length > 0 && (
+                      <div>
+                        <div className="kicker" style={{ marginBottom: 6 }}>What if</div>
+                        <ol className="qs-list">
+                          {wiQs.map((q, i) => <li key={i}>{q}</li>)}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })()}
           {dot && dot.x != null && (
             <section className="panel stack">
               <h2>Why {(dot.name || '').trim() || 'this story'} sits here</h2>
