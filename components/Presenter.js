@@ -37,6 +37,8 @@ export default function Presenter({ id }) {
   const [drawFor, setDrawFor] = useState(null);
   const [whatIfArrow, setWhatIfArrow] = useState(null);
   const [whatIfDrawing, setWhatIfDrawing] = useState(false);
+  const [wiQsData, setWiQsData] = useState(null);
+  const [wiQsLoading, setWiQsLoading] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [mins, setMins] = useState(10);
   const [msg, setMsg] = useState('');
@@ -61,7 +63,19 @@ export default function Presenter({ id }) {
   useEffect(() => {
     if (link) QRCode.toDataURL(link, { margin: 1, width: 300, color: { dark: '#0c1012', light: '#fffdf6' } }).then(setQr).catch(() => {});
   }, [link]);
-  useEffect(() => { setWhatIfArrow(null); setWhatIfDrawing(false); setDrawFor(null); }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setWhatIfArrow(null); setWhatIfDrawing(false); setDrawFor(null); setWiQsData(null); }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!whatIfArrow || !sel) { setWiQsData(null); return; }
+    setWiQsLoading(true); setWiQsData(null);
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 10000);
+    fetch(`/api/stories/${sel}/questions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ arrow: whatIfArrow }), signal: ctrl.signal,
+    }).then((r) => r.json()).then((j) => { if (Array.isArray(j.questions)) setWiQsData(j.questions); })
+      .catch(() => {}).finally(() => { clearTimeout(to); setWiQsLoading(false); });
+    return () => { ctrl.abort(); clearTimeout(to); };
+  }, [whatIfArrow, sel]);
 
   if (!auth) return <main className="wrap"><BrandBar /><p className="note">Loading…</p></main>;
   if (!auth.admin) return <main className="wrap narrow"><BrandBar /><p className="sub">Sign in at <a href="/?admin">/?admin</a>, then come back to this page.</p></main>;
@@ -167,24 +181,29 @@ export default function Presenter({ id }) {
           )}
           {selP && map.axes && (selP.arrow || selP.stays || whatIfArrow) && (() => {
             const realQs = questions(map.axes, selP);
-            const wiQs = whatIfArrow ? questions(map.axes, { ...selP, arrow: whatIfArrow }) : [];
+            const wiQs = wiQsData || [];
+            const showWi = whatIfArrow && (wiQsLoading || wiQs.length > 0);
             return (
               <div className="panel stack">
-                <div className={wiQs.length ? 'qs-cols qs-large' : 'qs-large'}>
+                <div className={showWi ? 'qs-cols qs-large' : 'qs-large'}>
                   {realQs.length > 0 && (
                     <div>
-                      {wiQs.length > 0 && <div className="kicker" style={{ marginBottom: 8 }}>Their direction</div>}
+                      {showWi && <div className="kicker" style={{ marginBottom: 8 }}>Their direction</div>}
                       <ol className="qs-list">
                         {realQs.map((q, i) => <li key={i}>{q}</li>)}
                       </ol>
                     </div>
                   )}
-                  {wiQs.length > 0 && (
+                  {showWi && (
                     <div>
                       <div className="kicker" style={{ marginBottom: 8 }}>What if</div>
-                      <ol className="qs-list">
-                        {wiQs.map((q, i) => <li key={i}>{q}</li>)}
-                      </ol>
+                      {wiQsLoading ? (
+                        <p className="note" style={{ fontStyle: 'italic' }}>Writing your questions…</p>
+                      ) : (
+                        <ol className="qs-list">
+                          {wiQs.map((q, i) => <li key={i}>{q}</li>)}
+                        </ol>
+                      )}
                     </div>
                   )}
                 </div>

@@ -69,6 +69,8 @@ export default function Admin() {
   const [open, setOpen] = useState({});
   const [whatIfArrow, setWhatIfArrow] = useState(null);
   const [whatIfDrawing, setWhatIfDrawing] = useState(false);
+  const [wiQsData, setWiQsData] = useState(null);
+  const [wiQsLoading, setWiQsLoading] = useState(false);
   const [testMode, setTestMode] = useState(false);
   const [includeTest, setIncludeTest] = useState(false);
   const loadedFor = useRef(null);
@@ -117,7 +119,19 @@ export default function Admin() {
     return () => clearInterval(t);
   }, [auth, selId, loadDet]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
-  useEffect(() => { setWhatIfArrow(null); setWhatIfDrawing(false); }, [selDot]);
+  useEffect(() => { setWhatIfArrow(null); setWhatIfDrawing(false); setWiQsData(null); }, [selDot]);
+  useEffect(() => {
+    if (!whatIfArrow || !selDot) { setWiQsData(null); return; }
+    setWiQsLoading(true); setWiQsData(null);
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 10000);
+    fetch(`/api/stories/${selDot}/questions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ arrow: whatIfArrow }), signal: ctrl.signal,
+    }).then((r) => r.json()).then((j) => { if (Array.isArray(j.questions)) setWiQsData(j.questions); })
+      .catch(() => {}).finally(() => { clearTimeout(to); setWiQsLoading(false); });
+    return () => { ctrl.abort(); clearTimeout(to); };
+  }, [whatIfArrow, selDot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!auth) return <main className="wrap"><p className="note">Loading…</p></main>;
   if (!auth.admin) return <main className="wrap"><header className="top"><h1>Story Map</h1><span className="chip">Admin</span></header><Login configured={auth.configured} onDone={() => setAuth({ admin: true, configured: true })} /></main>;
@@ -399,7 +413,8 @@ export default function Admin() {
           {dot && dot.x != null && s.axes && (() => {
             const dotForQ = { x: dot.x, y: dot.y, stays: !!dot.stays, arrow: dot.ax != null ? { x: dot.ax, y: dot.ay } : null };
             const realQs = questions(s.axes, dotForQ);
-            const wiQs = whatIfArrow ? questions(s.axes, { ...dotForQ, arrow: whatIfArrow }) : [];
+            const wiQs = wiQsData || [];
+            const showWi = whatIfArrow && (wiQsLoading || wiQs.length > 0);
             return (
               <section className="panel stack">
                 <h2>
@@ -414,22 +429,26 @@ export default function Admin() {
                   {whatIfArrow && <button type="button" className="quiet" onClick={() => setWhatIfArrow(null)}>Clear what if</button>}
                   {whatIfDrawing && <button type="button" className="quiet" onClick={() => setWhatIfDrawing(false)}>Cancel</button>}
                 </div>
-                {(realQs.length > 0 || wiQs.length > 0) && (
-                  <div className={wiQs.length ? 'qs-cols' : ''}>
+                {(realQs.length > 0 || showWi) && (
+                  <div className={showWi ? 'qs-cols' : ''}>
                     {realQs.length > 0 && (
                       <div>
-                        {wiQs.length > 0 && <div className="kicker" style={{ marginBottom: 6 }}>Their direction</div>}
+                        {showWi && <div className="kicker" style={{ marginBottom: 6 }}>Their direction</div>}
                         <ol className="qs-list">
                           {realQs.map((q, i) => <li key={i}>{q}</li>)}
                         </ol>
                       </div>
                     )}
-                    {wiQs.length > 0 && (
+                    {showWi && (
                       <div>
                         <div className="kicker" style={{ marginBottom: 6 }}>What if</div>
-                        <ol className="qs-list">
-                          {wiQs.map((q, i) => <li key={i}>{q}</li>)}
-                        </ol>
+                        {wiQsLoading ? (
+                          <p className="note" style={{ fontStyle: 'italic' }}>Writing your questions…</p>
+                        ) : (
+                          <ol className="qs-list">
+                            {wiQs.map((q, i) => <li key={i}>{q}</li>)}
+                          </ol>
+                        )}
                       </div>
                     )}
                   </div>

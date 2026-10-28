@@ -80,9 +80,12 @@ export default function Flow({ mode, id }) {
   const [readingLens, setReadingLens] = useState('');
   const [testMode, setTestMode] = useState(false);
   const [fillIdx, setFillIdx] = useState(0);
+  const [myQsData, setMyQsData] = useState(null); // null = use template
+  const [myQsLoading, setMyQsLoading] = useState(false);
   const recRef = useRef(null);
   const taRef = useRef(null);
   const readingKey = `sm-reading-${mode}-${id}`;
+  const questionsKey = `sm-questions-${mode}-${id}`;
 
   async function load() {
     const r = await fetch(base, { cache: 'no-store' });
@@ -186,19 +189,22 @@ export default function Flow({ mode, id }) {
     return has ? pts : [...pts, { ...mine.story, label: 'You' }];
   }, [map, mine]);
   const me = mine ? points.find((p) => p.id === mine.story.id) : null;
-  const myQs = s && map && map.axes ? questions(map.axes, me) : [];
+  const myQsTemplate = s && map && map.axes ? questions(map.axes, me) : [];
+  const myQs = myQsData ? myQsData : myQsTemplate;
 
   function setArrow(_id, xy) {
     setMap((m) => ({ ...m, points: m.points.map((p) => (p.id === mine.story.id ? { ...p, arrow: xy, stays: false } : p)) }));
     saveArrow({ arrow: xy });
     setDrawing(false);
+    fetchPersonalizedQuestions({ arrow: xy });
   }
   function stay() {
     setMap((m) => ({ ...m, points: m.points.map((p) => (p.id === mine.story.id ? { ...p, arrow: null, stays: true } : p)) }));
     saveArrow({ stays: true }); setDrawing(false);
+    fetchPersonalizedQuestions({ stays: true });
   }
   function restart() {
-    ls.del(mineKey); ls.del(draftKey); ls.del(arrowsKey); ls.del(readingKey);
+    ls.del(mineKey); ls.del(draftKey); ls.del(arrowsKey); ls.del(readingKey); ls.del(questionsKey);
     window.location.reload();
   }
 
@@ -232,11 +238,31 @@ export default function Flow({ mode, id }) {
       setPastArrows(ls.get(arrowsKey) || []);
       const saved = ls.get(readingKey);
       if (saved) { setReadingResult(saved); setReadingStage('done'); }
+      const savedQs = ls.get(questionsKey);
+      if (savedQs) setMyQsData(savedQs);
     }
   }, [mine]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setTestMode(document.cookie.split(';').some((c) => c.trim() === 'sm_test=1'));
   }, []);
+
+  async function fetchPersonalizedQuestions(body) {
+    if (!mine) return;
+    setMyQsLoading(true);
+    setMyQsData(null);
+    try {
+      const r = await fetch(`/api/stories/${mine.story.id}/questions`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: mine.token, ...body }),
+      });
+      const j = await r.json();
+      if (r.ok && Array.isArray(j.questions)) {
+        ls.set(questionsKey, j.questions);
+        setMyQsData(j.questions);
+      }
+    } catch {}
+    setMyQsLoading(false);
+  }
   function note(i, v) { const n = { ...notes, [i]: v }; setNotes(n); if (mine) ls.set('sm-notes-' + mine.story.id, n); }
 
   if (err) return <main className="flow"><BrandBar /><p className="warn center">{err}</p></main>;
@@ -467,18 +493,28 @@ export default function Flow({ mode, id }) {
             )}
             {stage === 'map' && me && me.x == null && <p className="sub">Your story is saved but not placed yet. {msg}</p>}
 
-            {stage === 'think' && myQs.length > 0 && (
-              <div className="qcard" key={qi}>
-                <div className="qdots">{myQs.map((_, i) => <span key={i} className={i <= qi ? 'on' : ''} />)}</div>
-                <p className="q">{myQs[qi]}</p>
-                {!isSession && <textarea rows={3} aria-label="Your notes (only on this device)" placeholder="Jot it down. Only you can see this." value={notes[qi] || ''} onChange={(e) => note(qi, e.target.value)} />}
-                <div className="row">
-                  {qi > 0 && <button type="button" className="quiet" onClick={() => setQi(qi - 1)}>Back</button>}
-                  {qi < myQs.length - 1
-                    ? <button type="button" onClick={() => setQi(qi + 1)}>Next question</button>
-                    : <button type="button" onClick={() => setStage('end')}>Done</button>}
-                  <button type="button" className="textlink" onClick={tryAnotherDirection}>Try another direction</button>
+            {stage === 'think' && (myQsLoading || myQs.length > 0) && (
+              <div className="qcard" key={myQsLoading ? 'loading' : qi}>
+                <div className="qdots">
+                  {myQsLoading
+                    ? [0, 1, 2, 3, 4].map((i) => <span key={i} className={i === 0 ? 'on' : ''} />)
+                    : myQs.map((_, i) => <span key={i} className={i <= qi ? 'on' : ''} />)}
                 </div>
+                {myQsLoading ? (
+                  <p className="q" style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Writing your questions…</p>
+                ) : (
+                  <>
+                    <p className="q">{myQs[qi]}</p>
+                    {!isSession && <textarea rows={3} aria-label="Your notes (only on this device)" placeholder="Jot it down. Only you can see this." value={notes[qi] || ''} onChange={(e) => note(qi, e.target.value)} />}
+                    <div className="row">
+                      {qi > 0 && <button type="button" className="quiet" onClick={() => setQi(qi - 1)}>Back</button>}
+                      {qi < myQs.length - 1
+                        ? <button type="button" onClick={() => setQi(qi + 1)}>Next question</button>
+                        : <button type="button" onClick={() => setStage('end')}>Done</button>}
+                      <button type="button" className="textlink" onClick={tryAnotherDirection}>Try another direction</button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
