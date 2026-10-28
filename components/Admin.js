@@ -45,11 +45,11 @@ function signalsToText(signals) {
   }).join('\n');
 }
 
-/* Parse "TYPE: text" lines back to objects (or plain strings for old sessions) */
+/* Parse "TYPE: text" lines to objects. Lines without a colon get type:''. */
 function textToSignals(text) {
   return text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
     const m = /^([^:]{1,40}):\s+(.+)/.exec(l);
-    return m ? { type: m[1].trim(), text: m[2].trim() } : l;
+    return m ? { type: m[1].trim(), text: m[2].trim() } : { type: '', text: l };
   }).slice(0, 12);
 }
 
