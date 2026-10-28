@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { q } from '@/lib/db';
 import { fail } from '@/lib/auth';
 import { readStory, invalid, saveAndPlace, promptMap } from '@/lib/submit';
@@ -15,7 +16,8 @@ export async function POST(req, { params }) {
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
     const s = (await q("select * from sessions where slug=$1 and kind='open'", [params.slug]))[0];
     if (!s) return NextResponse.json({ error: 'Prompt not found' }, { status: 404 });
-    const { story, token, warning } = await saveAndPlace(s, st);
+    const isTest = cookies().get('sm_test')?.value === '1';
+    const { story, token, warning } = await saveAndPlace(s, { ...st, isTest });
     return NextResponse.json({ story, token, map: await promptMap(s), warning });
   } catch (e) { return fail(e); }
 }

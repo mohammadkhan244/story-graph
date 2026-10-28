@@ -6,6 +6,11 @@ import { artSvg, decision, signalIcon } from '@/lib/cards';
 import { questions } from '@/lib/questions';
 
 const ANCHOR = 'Start with a specific morning. Where are you? What do you see first?';
+const TEST_STORIES = [
+  "I wake up and the phone is already full of messages. The project launched last night and the numbers are worse than expected. I sit at the kitchen table trying to decide whether to tell the team or wait for the next data pull.",
+  "The office is quiet. Everyone has gone remote and I am one of two people still coming in. I make coffee and look at the empty desks and think about the decision I made six months ago to stay in my role.",
+  "I am in the middle of a conversation with someone who disagrees with everything I have done this year. They are not wrong. I am nodding and taking notes and wondering what happens next.",
+];
 const STEPS = ['Scene', 'Write', 'Name', 'Map', 'Think'];
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const mmss = (ms) => { const s = Math.ceil(Math.max(0, ms) / 1000); return pad(Math.floor(s / 60)) + ':' + pad(s % 60); };
@@ -73,6 +78,8 @@ export default function Flow({ mode, id }) {
   const [readingResult, setReadingResult] = useState(null);
   const [readingStageVal, setReadingStageVal] = useState('');
   const [readingLens, setReadingLens] = useState('');
+  const [testMode, setTestMode] = useState(false);
+  const [fillIdx, setFillIdx] = useState(0);
   const recRef = useRef(null);
   const taRef = useRef(null);
   const readingKey = `sm-reading-${mode}-${id}`;
@@ -227,6 +234,9 @@ export default function Flow({ mode, id }) {
       if (saved) { setReadingResult(saved); setReadingStage('done'); }
     }
   }, [mine]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setTestMode(document.cookie.split(';').some((c) => c.trim() === 'sm_test=1'));
+  }, []);
   function note(i, v) { const n = { ...notes, [i]: v }; setNotes(n); if (mine) ls.set('sm-notes-' + mine.story.id, n); }
 
   if (err) return <main className="flow"><BrandBar /><p className="warn center">{err}</p></main>;
@@ -328,8 +338,17 @@ export default function Flow({ mode, id }) {
               <textarea ref={taRef} className="page" aria-label="Your story" value={text} onChange={(e) => { setText(e.target.value); if (!startedAt) setStartedAt(Date.now()); }} placeholder="I wake up and the first thing I see is…" />
               {drift && <p className="nudge">Stay in the scene. What are you doing right now?</p>}
               {over && <p className="nudge">Time. Finish your sentence, then give it a name.</p>}
+              {testMode && (
+                <div style={{ marginTop: 6, textAlign: 'center' }}>
+                  <button type="button" className="quiet" onClick={() => {
+                    setText(TEST_STORIES[fillIdx % TEST_STORIES.length]);
+                    setFillIdx((f) => f + 1);
+                    if (!startedAt) setStartedAt(Date.now());
+                  }}>Fill with a sample story</button>
+                </div>
+              )}
               <div className="center" style={{ marginTop: 18 }}>
-                <button className="big" type="button" disabled={text.trim().length < 20} onClick={() => { if (recRef.current) recRef.current.stop(); setStage('name'); }}>I'm done writing →</button>
+                <button className="big" type="button" disabled={!testMode && text.trim().length < 20} onClick={() => { if (recRef.current) recRef.current.stop(); setStage('name'); }}>I'm done writing →</button>
               </div>
             </>
           )}

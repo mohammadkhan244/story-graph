@@ -47,6 +47,8 @@ h3 { font: 400 26px/1.2 var(--title); margin: 0; text-wrap: balance; }
 .brand img { width: 30px; height: 30px; border-radius: 7px; }
 .textlink { background: none; border: 0; padding: 0; cursor: pointer; color: var(--label); font: 600 12px var(--labelf); letter-spacing: .12em; text-transform: uppercase; border-bottom: 1.5px solid var(--sage-deep); padding-bottom: 3px; }
 .textlink:hover { color: var(--paper); border-color: var(--paper); }
+.test-badge { background: var(--ruby); color: var(--paper); font: 700 10px var(--labelf); letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+.test-tag { color: var(--ruby) !important; }
 
 /* ---------- buttons ---------- */
 button { font: 700 14px var(--body); border-radius: 4px; border: 1px solid var(--paper); background: var(--paper); color: var(--ink); padding: 12px 22px; cursor: pointer; transition: transform .15s ease, background .15s ease; }

@@ -9,7 +9,7 @@ export async function GET() {
     /* Open prompts for the menu (have a slug, not hidden, sorted) */
     const prompts = await q(
       `select s.id, s.title, s.slug, s.big_question, s.year, s.sort,
-         (select count(*)::int from stories t where t.session_id=s.id) as n
+         (select count(*)::int from stories t where t.session_id=s.id and not t.is_test) as n
        from sessions s
        where s.kind='open' and s.slug is not null and not s.hidden
        order by s.sort asc, s.created_at asc`
@@ -18,7 +18,7 @@ export async function GET() {
     /* Past shared sessions (kind='session' or legacy non-default) */
     const past = await q(
       `select s.id, s.title, s.prompt, s.created_at,
-         (select count(*)::int from stories t where t.session_id=s.id and t.x is not null) as n
+         (select count(*)::int from stories t where t.session_id=s.id and t.x is not null and not t.is_test) as n
        from sessions s
        where s.published and (s.kind='session' or (s.kind='open' and s.slug is null and not s.is_default))
          and not s.is_default
