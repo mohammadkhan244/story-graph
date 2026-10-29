@@ -237,6 +237,17 @@ svg.map.drawing { cursor: crosshair; }
 .one-move-card .kicker { color: var(--ruby); }
 .one-move-card p { font-size: 14px; line-height: 1.6; color: var(--label); margin: 0; }
 
+/* loading bar */
+.lbar { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 400px; }
+.lbar-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.lbar-label { font: 600 11px var(--labelf); letter-spacing: .12em; text-transform: uppercase; color: var(--note); }
+.lbar-pct { font: 600 11px var(--labelf); letter-spacing: .04em; color: var(--paper); min-width: 28px; text-align: right; }
+.lbar-track { height: 2px; background: var(--frame); border-radius: 1px; overflow: hidden; }
+.lbar-fill { height: 100%; background: var(--sage); border-radius: 1px; transition: width .06s linear; }
+.lbar-detail { font-size: 12px; color: var(--muted); margin: 0; }
+.reading-loading ellipse { animation: ring 2.4s ease-in-out infinite; transform-origin: 90px 90px; }
+.reading-loading ellipse:nth-child(2) { animation-delay: .2s; } .reading-loading ellipse:nth-child(3) { animation-delay: .4s; } .reading-loading ellipse:nth-child(4) { animation-delay: .6s; }
+
 /* what-if arrow label in SVG */
 .whatif-lbl { font: 600 10px var(--labelf); letter-spacing: .1em; text-transform: uppercase; fill: var(--steel); }
 

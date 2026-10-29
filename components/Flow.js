@@ -2,8 +2,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryMap, { Mark, signalColors } from './StoryMap';
 import BrandBar from './BrandBar';
+import LoadingBar from './LoadingBar';
 import { artSvg, decision, signalIcon } from '@/lib/cards';
 import { questions } from '@/lib/questions';
+
+const PLACING_STAGES = [
+  { target: 18, label: 'Saving your story…', detail: '', duration: 500 },
+  { target: 42, label: 'Reading your story…', detail: 'Understanding what you wrote.', duration: 1500 },
+  { target: 64, label: 'Finding where it lands…', detail: 'Comparing with all other futures.', duration: 2000 },
+  { target: 82, label: 'Placing your dot…', detail: 'Positioning on both axes.', duration: 1500 },
+  { target: 94, label: 'Almost there…', detail: '', duration: 2500 },
+];
+const READING_STAGES = [
+  { target: 12, label: 'Reading your story…', detail: 'Taking in what you wrote.', duration: 1200 },
+  { target: 28, label: 'Finding the unspoken…', detail: "What you didn't plan to write.", duration: 2200 },
+  { target: 46, label: 'Mapping the narrative…', detail: 'Emotional arc and turning points.', duration: 2800 },
+  { target: 64, label: 'Reading between the lines…', detail: 'Patterns, fears, desires.', duration: 2800 },
+  { target: 80, label: 'Writing your reading…', detail: 'Eight sections, your story.', duration: 3200 },
+  { target: 93, label: 'Finishing up…', detail: '', duration: 2500 },
+];
+const QUESTIONS_STAGES = [
+  { target: 28, label: 'Reading your story…', detail: 'Understanding where you landed.', duration: 1200 },
+  { target: 68, label: 'Writing your questions…', detail: 'Tailored to your story and direction.', duration: 2800 },
+  { target: 93, label: 'Almost ready…', detail: '', duration: 1800 },
+];
 
 const ANCHOR = 'Start with a specific morning. Where are you? What do you see first?';
 const TEST_STORIES = [
@@ -447,7 +469,7 @@ export default function Flow({ mode, id }) {
             <circle cx="90" cy="90" r="8" fill="#a72f39" />
           </svg>
           <h3>Reading your story…</h3>
-          <p className="sub">Finding where it lands among everyone else's.</p>
+          <LoadingBar stages={PLACING_STAGES} />
         </section>
       )}
 
@@ -530,15 +552,13 @@ export default function Flow({ mode, id }) {
 
             {stage === 'think' && (myQsLoading || myQs.length > 0) && (
               <div className="qcard" key={myQsLoading ? 'loading' : qi}>
-                <div className="qdots">
-                  {myQsLoading
-                    ? [0, 1, 2, 3, 4].map((i) => <span key={i} className={i === 0 ? 'on' : ''} />)
-                    : myQs.map((_, i) => <span key={i} className={i <= qi ? 'on' : ''} />)}
-                </div>
                 {myQsLoading ? (
-                  <p className="q" style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Writing your questions…</p>
+                  <LoadingBar stages={QUESTIONS_STAGES} />
                 ) : (
                   <>
+                    <div className="qdots">
+                      {myQs.map((_, i) => <span key={i} className={i <= qi ? 'on' : ''} />)}
+                    </div>
                     <p className="q">{myQs[qi]}</p>
                     {!isSession && <textarea rows={3} aria-label="Your notes (only on this device)" placeholder="Jot it down. Only you can see this." value={notes[qi] || ''} onChange={(e) => note(qi, e.target.value)} />}
                     <div className="row">
@@ -601,7 +621,7 @@ export default function Flow({ mode, id }) {
                           {[34, 54, 74, 88].map((r, i) => <ellipse key={i} cx="90" cy="90" rx={r} ry={r * 0.55} fill="none" stroke={i % 2 ? '#79998b' : '#afbeb1'} strokeWidth="1.5" />)}
                           <circle cx="90" cy="90" r="8" fill="#a72f39" />
                         </svg>
-                        <p className="sub">Reading your story…</p>
+                        <LoadingBar stages={READING_STAGES} />
                       </div>
                     )}
                     {readingStage === 'done' && readingResult && (() => {
