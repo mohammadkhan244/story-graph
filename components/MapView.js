@@ -11,6 +11,24 @@ const ARROW_LABEL = {
   cross: 'Changing direction',
 };
 
+/* Returns a plain-English description of a direction, e.g.:
+   "from Passively receives toward Inside the narrator's mind"
+   "further toward Actively seeks"
+   "pulling back toward Passively receives" */
+function describeDirection(axes, dot, arrow, stays) {
+  if (stays || !arrow || !axes) return 'staying put';
+  const type = classifyArrow({ x: dot.x, y: dot.y }, arrow);
+  const dx = arrow.x - dot.x, dy = arrow.y - dot.y;
+  const isX = Math.abs(dx) >= Math.abs(dy);
+  const a = isX ? axes.x : axes.y;
+  const src = (isX ? dot.x : dot.y) < 0 ? a.low : a.high;
+  const dst = (isX ? arrow.x : arrow.y) < 0 ? a.low : a.high;
+  if (type === 'deepen') return `going further toward "${dst}"`;
+  if (type === 'pullback') return `pulling back toward "${dst}"`;
+  if (src === dst) return `going further toward "${dst}"`;
+  return `from "${src}" toward "${dst}"`;
+}
+
 export default function MapView({ id }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
@@ -27,14 +45,12 @@ export default function MapView({ id }) {
       .catch((e) => setErr(e.message));
   }, [id]);
 
-  // Reset what-if when selection changes
   useEffect(() => {
     setWhatIfArrow(null);
     setWhatIfDrawing(false);
     setWiQsData(null);
   }, [sel]);
 
-  // Fetch AI questions when a what-if arrow is drawn
   useEffect(() => {
     if (!whatIfArrow || !sel) { setWiQsData(null); return; }
     setWiQsLoading(true);
@@ -60,7 +76,6 @@ export default function MapView({ id }) {
   const { map, title, bigQuestion, prompt, ctaSlug, storyCount } = data;
   const selP = map.points.find((p) => p.id === sel);
 
-  // Real arrow classification + questions
   let arrowType = null;
   if (selP && map.axes && (selP.stays || selP.arrow)) {
     arrowType = selP.stays ? 'stay' : classifyArrow({ x: selP.x, y: selP.y }, selP.arrow);
@@ -69,15 +84,19 @@ export default function MapView({ id }) {
     ? questions(map.axes, selP)
     : [];
 
-  // What-if questions: show template immediately, replace with AI when ready
-  const wiType = whatIfArrow && selP ? classifyArrow({ x: selP.x, y: selP.y }, whatIfArrow) : null;
   const wiQsTemplate = whatIfArrow && selP && map.axes
     ? questions(map.axes, { ...selP, arrow: whatIfArrow, stays: false })
     : [];
   const wiQs = wiQsData ? wiQsData.map((q) => q) : wiQsTemplate;
-
   const showWi = !!whatIfArrow;
   const drawing = whatIfDrawing && !!sel;
+
+  const wiDescription = whatIfArrow && selP && map.axes
+    ? describeDirection(map.axes, selP, whatIfArrow, false)
+    : '';
+  const realDescription = selP && map.axes
+    ? describeDirection(map.axes, selP, selP.arrow, selP.stays)
+    : '';
 
   return (
     <main className="wrap">
@@ -94,8 +113,8 @@ export default function MapView({ id }) {
         )}
 
         {drawing && (
-          <p className="note" style={{ textAlign: 'center', marginBottom: 8, fontStyle: 'italic' }}>
-            Tap anywhere on the map to draw a hypothetical arrow…
+          <p style={{ textAlign: 'center', marginBottom: 8, fontSize: 14, color: '#a5c7d1', fontStyle: 'italic' }}>
+            Tap anywhere on the map to draw your arrow
           </p>
         )}
 
@@ -116,11 +135,12 @@ export default function MapView({ id }) {
         </div>
 
         {!sel && storyCount > 0 && (
-          <p className="note" style={{ marginTop: 12, textAlign: 'center' }}>Tap a dot to read their story and explore what questions they were asked.</p>
+          <p className="note" style={{ marginTop: 12, textAlign: 'center' }}>Tap a dot to read their story and explore what questions they faced.</p>
         )}
 
         {selP && (
           <div className="peek" style={{ marginTop: 16 }}>
+
             {/* Name + arrow badge */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 6 }}>
               <div>
@@ -143,7 +163,7 @@ export default function MapView({ id }) {
               </p>
             )}
 
-            {/* Placement quotes — where they currently sit */}
+            {/* Placement — where they currently sit */}
             {(selP.xq || selP.yq) && (
               <p style={{ fontStyle: 'italic', opacity: 0.65, fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>
                 {[selP.xq, selP.yq].filter(Boolean).join(' · ')}
@@ -157,35 +177,43 @@ export default function MapView({ id }) {
               <p className="note" style={{ margin: '0 0 14px' }}>This story is kept private.</p>
             )}
 
-            {/* What-if controls */}
+            {/* Arrow exploration controls */}
             <div className="row" style={{ marginTop: 4, flexWrap: 'wrap' }}>
               <button type="button" className="quiet" onClick={() => {
                 setWhatIfArrow(null);
                 setWiQsData(null);
                 setWhatIfDrawing(!whatIfDrawing);
               }}>
-                {drawing ? 'Tap the map…' : whatIfArrow ? 'Redraw arrow' : 'What if they moved?'}
+                {drawing
+                  ? 'Tap the map to place your arrow…'
+                  : showWi
+                  ? 'Try a different direction'
+                  : 'Where would you go from here?'}
               </button>
               {(drawing || showWi) && (
                 <button type="button" className="quiet" onClick={() => {
                   setWhatIfArrow(null);
                   setWhatIfDrawing(false);
                   setWiQsData(null);
-                }}>Clear</button>
+                }}>Cancel</button>
               )}
             </div>
 
-            {/* Two-column questions: what-if vs real */}
-            {(realQs.length > 0 || showWi) && (
-              <div className={showWi && realQs.length > 0 ? 'qs-cols' : ''} style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(175,190,177,0.2)' }}>
+            {/* Questions panels */}
+            {(showWi || realQs.length > 0) && (
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(175,190,177,0.2)' }}>
 
+                {/* What-if questions — full experiential framing */}
                 {showWi && (
-                  <div>
-                    <span className="kicker" style={{ display: 'block', marginBottom: 8 }}>
-                      What if → <em>{ARROW_LABEL[wiType]}</em>
-                    </span>
+                  <div style={{ marginBottom: realQs.length > 0 ? 24 : 0 }}>
+                    <p style={{ font: '400 18px var(--title)', margin: '0 0 4px' }}>
+                      You drew your arrow {wiDescription}
+                    </p>
+                    <p className="note" style={{ margin: '0 0 12px' }}>
+                      Here's what the exercise would ask you from here:
+                    </p>
                     {wiQsLoading && !wiQsData ? (
-                      <p className="note" style={{ fontStyle: 'italic' }}>Writing questions…</p>
+                      <p className="note" style={{ fontStyle: 'italic' }}>Writing your questions…</p>
                     ) : (
                       <ol className="qs-list">
                         {wiQs.map((q, i) => <li key={i}>{q}</li>)}
@@ -194,11 +222,17 @@ export default function MapView({ id }) {
                   </div>
                 )}
 
+                {/* Their actual direction — shown as comparison when what-if is active */}
                 {realQs.length > 0 && (
                   <div>
-                    <span className="kicker" style={{ display: 'block', marginBottom: 8 }}>
-                      {showWi ? <>Their direction · <em>{ARROW_LABEL[arrowType]}</em></> : 'Questions they were asked'}
-                    </span>
+                    {showWi && (
+                      <p className="note" style={{ margin: '0 0 10px' }}>
+                        For comparison — where they actually drew their arrow ({realDescription}):
+                      </p>
+                    )}
+                    {!showWi && (
+                      <span className="kicker" style={{ display: 'block', marginBottom: 10 }}>Questions they were asked</span>
+                    )}
                     <ol className="qs-list">
                       {realQs.map((q, i) => <li key={i}>{q}</li>)}
                     </ol>
