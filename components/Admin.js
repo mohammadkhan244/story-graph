@@ -227,6 +227,7 @@ export default function Admin() {
               <div className="row">
                 <input readOnly value={link} aria-label="Share link" onFocus={(e) => e.target.select()} />
                 <button className="ghost" onClick={() => { navigator.clipboard.writeText(link).then(() => say('Link copied.'), () => say('Select the link and copy it.', true)); }}>Copy link</button>
+                <button className="ghost" onClick={() => { const vl = `${origin}/m/${s.id}`; navigator.clipboard.writeText(vl).then(() => say('View link copied.'), () => say('Select the link and copy it.', true)); }}>Copy view link</button>
                 <a className="textlink" href={`/present/${s.id}`} target="_blank" rel="noreferrer">Open presenter screen ↗</a>
               </div>
               <div className={'status' + (isOpen ? ' ok' : '')}>

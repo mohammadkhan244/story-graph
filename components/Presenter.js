@@ -134,6 +134,10 @@ export default function Presenter({ id }) {
               <div className="stack" style={{ gap: 6 }}>
                 <span className="kicker">Join on your phone</span>
                 <span className="url">{link.replace(/^https?:\/\//, '')}</span>
+                <button type="button" className="ghost" style={{ marginTop: 4 }} onClick={() => {
+                  const vl = typeof window !== 'undefined' ? `${window.location.origin}/m/${id}` : '';
+                  navigator.clipboard.writeText(vl).then(() => setMsg('View link copied.'), () => setMsg('Copy failed — copy the link manually.'));
+                }}>Copy view link</button>
               </div>
             </div>
           )}
