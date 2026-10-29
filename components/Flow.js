@@ -104,6 +104,7 @@ export default function Flow({ mode, id }) {
   const [fillIdx, setFillIdx] = useState(0);
   const [resumeMode, setResumeMode] = useState(false);
   const [pastMine, setPastMine] = useState(null);
+  const [sharedStory, setSharedStory] = useState(false);
   const [myQsData, setMyQsData] = useState(null); // null = use template
   const [myQsLoading, setMyQsLoading] = useState(false);
   const recRef = useRef(null);
@@ -202,7 +203,7 @@ export default function Flow({ mode, id }) {
     try {
       const r = await fetch(`${base}/stories`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, headline, name, shared: isSession ? false : shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp }),
+        body: JSON.stringify({ text, headline, name, shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Could not save your story.');
@@ -279,6 +280,7 @@ export default function Flow({ mode, id }) {
       if (saved) { setReadingResult(saved); setReadingStage('done'); }
       const savedQs = ls.get(questionsKey);
       if (savedQs) setMyQsData(savedQs);
+      setSharedStory(mine.story.shared ?? false);
     }
   }, [mine]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -301,6 +303,18 @@ export default function Flow({ mode, id }) {
       }
     } catch {}
     setMyQsLoading(false);
+  }
+  async function toggleShared(v) {
+    if (!mine) return;
+    setSharedStory(v);
+    setMap((m) => m ? {
+      ...m,
+      points: m.points.map((p) => p.id === mine.story.id ? { ...p, body: v ? mine.story.body : null, context: v ? mine.story.context : null } : p),
+    } : m);
+    await fetch(`/api/stories/${mine.story.id}`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: mine.token, shared: v }),
+    });
   }
   function note(i, v) { const n = { ...notes, [i]: v }; setNotes(n); if (mine) ls.set('sm-notes-' + mine.story.id, n); }
 
@@ -451,7 +465,7 @@ export default function Flow({ mode, id }) {
               <label htmlFor="nm">{isSession ? 'Name on the shared screen (optional)' : 'Your name (optional)'}</label>
               <input id="nm" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Leave blank to stay anonymous" />
             </div>
-            {!isSession && <label className="check"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Let others read my story</label>}
+            <label className="check"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Let others read my full story on the map (your name shows only if you add one)</label>
             <div className="hp" aria-hidden="true"><input tabIndex={-1} autoComplete="off" value={hp} onChange={(e) => setHp(e.target.value)} /></div>
             <div className="center" style={{ gap: 10, marginTop: 8 }}>
               <button className="big primary" type="submit">Place my story on the map</button>
@@ -515,6 +529,9 @@ export default function Flow({ mode, id }) {
               ))}
               {points.some((p) => p.source === 'card-exercise') && <span><svg viewBox="-10 -10 20 20"><circle r="6" fill="none" stroke="#afbeb1" strokeWidth="2" /></svg>From the 90-second card exercise</span>}
               {points.some((p) => p.arrow) && <span>→ where they'd rather be</span>}
+              {points.some((p) => p.id !== (mine && mine.story.id) && p.body != null) && (
+                <span><svg viewBox="-10 -10 20 20"><circle r="6" fill="#afbeb1" /><circle r="10" fill="none" stroke="#afbeb1" strokeWidth="1.5" opacity="0.6" /></svg>tap ring to read</span>
+              )}
             </div>
           </div>
           <div className="side">
@@ -546,6 +563,10 @@ export default function Flow({ mode, id }) {
                     </div>
                   </div>
                 )}
+                <label className="check" style={{ marginTop: 8 }}>
+                  <input type="checkbox" checked={sharedStory} onChange={(e) => toggleShared(e.target.checked)} />
+                  Let others read my full story
+                </label>
               </div>
             )}
             {stage === 'map' && me && me.x == null && <p className="sub">Your story is saved but not placed yet. {msg}</p>}
@@ -672,12 +693,27 @@ export default function Flow({ mode, id }) {
             {peek && (() => {
               const p = points.find((x) => x.id === peek);
               if (!p || p.id === (mine && mine.story.id)) return null;
+              const arrowNote = p.arrow && map && map.axes ? (() => {
+                const dx = p.arrow.x - p.x, dy = p.arrow.y - p.y;
+                const isX = Math.abs(dx) >= Math.abs(dy);
+                const a = isX ? map.axes.x : map.axes.y;
+                const dest = (isX ? p.arrow.x : p.arrow.y) < 0 ? a.low : a.high;
+                const src = (isX ? p.x : p.y) < 0 ? a.low : a.high;
+                return src === dest ? `Going further toward ${dest}` : `Moving toward ${dest}`;
+              })() : null;
               return (
                 <div className="peek">
+                  {p.headline && <strong style={{ font: '400 22px var(--title)', display: 'block' }}>{p.headline}</strong>}
                   <span className="kicker">{p.label}</span>
-                  {p.headline && <strong style={{ font: '400 20px var(--title)' }}>{p.headline}</strong>}
-                  {p.body ? <p className="storytext">{p.body}</p> : <p className="note">This writer kept their story private.</p>}
-                  {p.stays && <p className="note">Would stay where they are.</p>}
+                  {p.body ? (
+                    <>
+                      {(p.context || p.signal) && <p className="note">{[p.context, p.signal].filter(Boolean).join(' · ')}</p>}
+                      <p className="storytext">{p.body}</p>
+                    </>
+                  ) : (
+                    <p className="note">This writer kept their story private.</p>
+                  )}
+                  {p.stays ? <p className="note">Would stay where they are.</p> : arrowNote ? <p className="note">{arrowNote}</p> : null}
                 </div>
               );
             })()}

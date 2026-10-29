@@ -164,9 +164,16 @@ export default function Presenter({ id }) {
           </div>
           {selP && (
             <div className="peek">
+              {selP.headline && <strong style={{ font: '400 22px var(--title)', display: 'block' }}>{selP.headline}</strong>}
               <span className="kicker">{names ? selP.label : 'Selected story'}</span>
-              {selP.headline && <strong style={{ font: '400 22px var(--title)' }}>{selP.headline}</strong>}
-              {selP.xq && <p className="quote">"{selP.xq}"</p>}
+              {selP.body ? (
+                <>
+                  {(selP.context || selP.signal) && <p className="note">{[selP.context, selP.signal].filter(Boolean).join(' · ')}</p>}
+                  <p className="storytext" style={{ maxHeight: 200, overflow: 'auto' }}>{selP.body}</p>
+                </>
+              ) : selP.xq ? (
+                <p className="quote">"{selP.xq}"</p>
+              ) : null}
               <div className="row" style={{ flexWrap: 'wrap' }}>
                 <button type="button" onClick={() => { setWhatIfDrawing(false); setDrawFor(drawFor === selP.id ? null : selP.id); }}>
                   {drawFor === selP.id ? 'Tap the map…' : 'Set their arrow (saves)'}

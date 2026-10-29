@@ -184,7 +184,10 @@ export default function StoryMap({
               ) : testDot ? (
                 <Mark shape="circle" r={sel ? 10 : 8} fill="none" stroke="#a72f39" sw={sel ? 3 : 2} />
               ) : (
-                <Mark shape={shape(p.signal)} r={sel ? 10 : 8} fill={hollow ? 'none' : '#afbeb1'} stroke={sel ? '#fffdf6' : '#afbeb1'} sw={sel ? 3 : 2} />
+                <>
+                  {p.body != null && <circle r={sel ? 16 : 14} fill="none" stroke="#afbeb1" strokeWidth={1.5} opacity={0.45} />}
+                  <Mark shape={shape(p.signal)} r={sel ? 10 : 8} fill={hollow ? 'none' : '#afbeb1'} stroke={sel ? '#fffdf6' : '#afbeb1'} sw={sel ? 3 : 2} />
+                </>
               )}
             </g>
             {(showLabels || you || sel) && (

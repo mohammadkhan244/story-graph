@@ -13,12 +13,17 @@ export async function PATCH(req, { params }) {
     if (!b.token) return NextResponse.json({ error: 'Missing token' }, { status: 401 });
     const t = (await q('select id from stories where id=$1 and token_hash=$2', [params.id, hashToken(b.token)]))[0];
     if (!t) return NextResponse.json({ error: 'Not your story' }, { status: 403 });
-    if (b.stays) {
-      await q('update stories set ax=null, ay=null, stays=true where id=$1', [params.id]);
-    } else if (b.arrow && b.arrow.x != null && b.arrow.y != null) {
-      await q('update stories set ax=$2, ay=$3, stays=false where id=$1', [params.id, clamp(b.arrow.x), clamp(b.arrow.y)]);
-    } else {
-      await q('update stories set ax=null, ay=null, stays=false where id=$1', [params.id]);
+    if (b.stays !== undefined || b.arrow !== undefined) {
+      if (b.stays) {
+        await q('update stories set ax=null, ay=null, stays=true where id=$1', [params.id]);
+      } else if (b.arrow && b.arrow.x != null && b.arrow.y != null) {
+        await q('update stories set ax=$2, ay=$3, stays=false where id=$1', [params.id, clamp(b.arrow.x), clamp(b.arrow.y)]);
+      } else {
+        await q('update stories set ax=null, ay=null, stays=false where id=$1', [params.id]);
+      }
+    }
+    if (typeof b.shared === 'boolean') {
+      await q('update stories set shared=$2 where id=$1', [params.id, b.shared]);
     }
     return NextResponse.json({ ok: true });
   } catch (e) { return fail(e); }
