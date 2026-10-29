@@ -27,6 +27,7 @@ export async function GET(_req, { params }) {
     return NextResponse.json({
       title: s.title,
       bigQuestion: s.big_question || '',
+      prompt: s.prompt || '',
       storyCount: map.points.length,
       ctaSlug,
       map,
