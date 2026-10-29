@@ -6,6 +6,22 @@ import BrandBar from './BrandBar';
 import { questions } from '@/lib/questions';
 
 /* The screen you share in the room. Dots arrive live; you reveal them, then let the map drive the talk. */
+function CopyButton({ text, label, className = 'ghost' }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button type="button" className={className}
+      style={copied ? { background: '#afbeb1', color: '#0c1012', borderColor: '#afbeb1' } : {}}
+      onClick={() => {
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => {});
+      }}>
+      {copied ? 'Copied ✓' : label}
+    </button>
+  );
+}
+
 const DISCUSS = [
   'Where did you land? Does it surprise you?',
   'Why is the group gathered here?',
@@ -134,10 +150,7 @@ export default function Presenter({ id }) {
               <div className="stack" style={{ gap: 6 }}>
                 <span className="kicker">Join on your phone</span>
                 <span className="url">{link.replace(/^https?:\/\//, '')}</span>
-                <button type="button" className="ghost" style={{ marginTop: 4 }} onClick={() => {
-                  const vl = typeof window !== 'undefined' ? `${window.location.origin}/m/${id}` : '';
-                  navigator.clipboard.writeText(vl).then(() => setMsg('View link copied.'), () => setMsg('Copy failed — copy the link manually.'));
-                }}>Copy view link</button>
+                <CopyButton text={`${window.location.origin}/m/${id}`} label="Copy view link" />
               </div>
             </div>
           )}

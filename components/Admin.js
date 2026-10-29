@@ -10,6 +10,22 @@ async function api(path, method = 'GET', body) {
   return j;
 }
 
+function CopyButton({ text, label, className = 'ghost' }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button type="button" className={className}
+      style={copied ? { background: '#afbeb1', color: '#0c1012', borderColor: '#afbeb1' } : {}}
+      onClick={() => {
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => {});
+      }}>
+      {copied ? 'Copied ✓' : label}
+    </button>
+  );
+}
+
 function Armed({ label, armedLabel, onConfirm, className = 'quiet', disabled }) {
   const [a, setA] = useState(false);
   return (
@@ -226,8 +242,8 @@ export default function Admin() {
               <h2>{isPrompt ? 'Open prompt' : s.is_default ? 'Default link' : 'This session'}</h2>
               <div className="row">
                 <input readOnly value={link} aria-label="Share link" onFocus={(e) => e.target.select()} />
-                <button className="ghost" onClick={() => { navigator.clipboard.writeText(link).then(() => say('Link copied.'), () => say('Select the link and copy it.', true)); }}>Copy link</button>
-                <button className="ghost" onClick={() => { const vl = `${origin}/m/${s.id}`; navigator.clipboard.writeText(vl).then(() => say('View link copied.'), () => say('Select the link and copy it.', true)); }}>Copy view link</button>
+                <CopyButton text={link} label="Copy link" />
+                <CopyButton text={`${origin}/m/${s.id}`} label="Copy view link" />
                 <a className="textlink" href={`/present/${s.id}`} target="_blank" rel="noreferrer">Open presenter screen ↗</a>
               </div>
               <div className={'status' + (isOpen ? ' ok' : '')}>
