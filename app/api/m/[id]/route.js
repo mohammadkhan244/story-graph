@@ -16,7 +16,7 @@ export async function GET(_req, { params }) {
       ? await promptMap(s)
       : await sessionMap(s, false);
 
-    let ctaSlug = s.slug || null;
+    let ctaSlug = s.slug || (s.kind === 'open' ? s.id : null);
     if (!ctaSlug && s.parent_id) {
       const parent = (await q('select slug from sessions where id=$1', [s.parent_id]))[0];
       if (parent && parent.slug) ctaSlug = parent.slug;

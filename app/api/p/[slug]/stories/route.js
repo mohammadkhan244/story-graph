@@ -14,7 +14,8 @@ export async function POST(req, { params }) {
     const st = readStory(b);
     const bad = invalid(st);
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
-    const s = (await q("select * from sessions where slug=$1 and kind='open'", [params.slug]))[0];
+    let s = (await q("select * from sessions where slug=$1 and kind='open'", [params.slug]))[0];
+    if (!s) s = (await q("select * from sessions where id=$1 and kind='open'", [params.slug]))[0];
     if (!s) return NextResponse.json({ error: 'Prompt not found' }, { status: 404 });
     const isTest = cookies().get('sm_test')?.value === '1' && isAdmin();
     const { story, token, warning } = await saveAndPlace(s, { ...st, isTest });
