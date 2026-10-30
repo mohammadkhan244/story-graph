@@ -37,6 +37,8 @@ export default function MapView({ id }) {
   const [whatIfArrow, setWhatIfArrow] = useState(null);
   const [wiQsData, setWiQsData] = useState(null);
   const [wiQsLoading, setWiQsLoading] = useState(false);
+  const [ctaEl, setCtaEl] = useState(null);
+  const [ctaVisible, setCtaVisible] = useState(false);
 
   useEffect(() => {
     fetch(`/api/m/${id}`, { cache: 'no-store' })
@@ -70,6 +72,13 @@ export default function MapView({ id }) {
     return () => { ctrl.abort(); clearTimeout(to); };
   }, [whatIfArrow, sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!ctaEl) return;
+    const obs = new IntersectionObserver(([entry]) => setCtaVisible(entry.isIntersecting), { threshold: 0.1 });
+    obs.observe(ctaEl);
+    return () => obs.disconnect();
+  }, [ctaEl]);
+
   if (err) return <main className="wrap"><BrandBar /><p className="warn" style={{ padding: '24px 16px' }}>{err}</p></main>;
   if (!data) return <main className="wrap"><BrandBar /><p className="note" style={{ padding: '24px 16px' }}>Loading…</p></main>;
 
@@ -102,6 +111,7 @@ export default function MapView({ id }) {
     <main className="wrap">
       <BrandBar />
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px 48px' }}>
+        <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--note)', lineHeight: 1.55 }}>Each dot is a 10-minute story someone wrote about this decision. Where it lands shows the future they pictured first.</p>
         <h1 style={{ font: '400 28px/1.2 var(--title)', marginBottom: 4 }}>{bigQuestion || title}</h1>
         <p className="note" style={{ marginBottom: 20 }}>{storyCount} {storyCount === 1 ? 'story' : 'stories'} placed</p>
 
@@ -245,14 +255,24 @@ export default function MapView({ id }) {
         )}
 
         {ctaSlug && (
-          <div style={{ marginTop: 40, padding: '28px 24px', background: 'rgba(175,190,177,0.12)', border: '1px solid rgba(175,190,177,0.25)', borderRadius: 12, textAlign: 'center' }}>
-            <p style={{ margin: '0 0 14px', fontSize: 18, fontFamily: 'var(--title)' }}>Want to see where your story lands?</p>
-            <a href={`/p/${ctaSlug}`} style={{ display: 'inline-block', padding: '12px 28px', background: 'var(--ink)', color: 'var(--paper)', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
-              Write yours →
-            </a>
+          <div ref={setCtaEl} style={{ marginTop: 40, padding: '36px 24px', background: 'rgba(175,190,177,0.08)', border: '1px solid rgba(175,190,177,0.2)', borderRadius: 14, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <p style={{ margin: 0, font: '400 22px/1.25 var(--title)', maxWidth: '28ch', textWrap: 'balance' }}>See where your story lands</p>
+            <p className="note" style={{ margin: 0, fontSize: 14 }}>10 minutes of writing. Your dot appears next to these.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <a href={`/p/${ctaSlug}`} style={{ display: 'inline-block', padding: '14px 32px', background: 'var(--ruby-site)', color: 'var(--paper)', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 15, letterSpacing: '0.01em' }}>
+                Write about this decision →
+              </a>
+              <a href="/" className="textlink">Pick a different decision</a>
+            </div>
           </div>
         )}
       </div>
+
+      {ctaSlug && (
+        <div className={`sticky-cta${ctaVisible ? ' out' : ''}`}>
+          <a href={`/p/${ctaSlug}`}>Write about this decision →</a>
+        </div>
+      )}
     </main>
   );
 }
