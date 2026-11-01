@@ -628,6 +628,7 @@ export default function Flow({ mode, id }) {
                   <a className="endcard" href="/"><strong>Try a different decision</strong>Four more cards are waiting.</a>
                 </div>
                 <button type="button" className="textlink" onClick={tryAnotherDirection}>Try another direction</button>
+                <p className="note" style={{ marginTop: 4 }}>Facing this decision as a team? <a className="textlink" href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map">Run it in a workshop →</a></p>
                 {!isSession && (
                   <div className="reading-panel">
                     {readingStage === 'idle' && (

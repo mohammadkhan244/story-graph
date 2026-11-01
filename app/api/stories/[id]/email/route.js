@@ -124,6 +124,10 @@ ${questionsHtml ? `<tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da
   <p style="margin:0;"><a href="${esc(mapUrl)}" style="color:#a72f39;text-decoration:none;font-size:15px;">See the full map</a></p>
 </td></tr>
 
+<tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da;">
+  <p style="font-size:14px;color:#8a9098;margin:0;">Facing this decision as a team? <a href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map" style="color:#79998b;text-decoration:none;">Run it in a workshop →</a></p>
+</td></tr>
+
 <tr><td style="padding:28px 0 0;">
   <p style="font-size:12px;color:#8a9098;margin:0;">Story Map by Mohammad Khan &middot; <a href="https://story-map.themohammadkhan.com" style="color:#a72f39;text-decoration:none;">story-map.themohammadkhan.com</a></p>
 </td></tr>
@@ -200,8 +204,9 @@ export async function POST(req, { params }) {
       const from = process.env.EMAIL_FROM || 'Story Map <stories@story-map.themohammadkhan.com>';
       const { error } = await resend.emails.send({ from, to: email, subject, html });
       if (error) {
-        console.error('Resend error:', error.message || error);
-        return NextResponse.json({ error: "Couldn't send. Try again." }, { status: 500 });
+        const msg = error.message || JSON.stringify(error);
+        console.error('Resend error:', msg);
+        return NextResponse.json({ error: `Resend: ${msg}` }, { status: 500 });
       }
     } else {
       return NextResponse.json({ error: 'Email sending is not configured.' }, { status: 500 });
