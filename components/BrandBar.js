@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 export default function BrandBar({ right }) {
   const [test, setTest] = useState(false);
   useEffect(() => {
-    setTest(document.cookie.split(';').some((c) => c.trim() === 'sm_test=1'));
+    setTest(sessionStorage.getItem('sm_test') === '1');
   }, []);
   return (
     <div className="brandbar">

@@ -123,7 +123,10 @@ export default function Admin() {
   useEffect(() => {
     api('/api/admin/login').then((j) => {
       setAuth(j);
-      if (j.admin) api('/api/admin/test-mode').then((t) => setTestMode(t.testMode)).catch(() => {});
+      if (j.admin) api('/api/admin/test-mode').then((t) => {
+        setTestMode(t.testMode);
+        if (t.testMode) sessionStorage.setItem('sm_test', '1'); else sessionStorage.removeItem('sm_test');
+      }).catch(() => {});
     }).catch(() => setAuth({ admin: false, configured: false }));
   }, []);
   useEffect(() => { if (auth && auth.admin) loadList(); }, [auth, loadList]);
@@ -190,10 +193,11 @@ export default function Admin() {
           <input type="checkbox" checked={testMode} onChange={async (e) => {
             await api('/api/admin/test-mode', 'POST', { on: e.target.checked });
             setTestMode(e.target.checked);
+            if (e.target.checked) sessionStorage.setItem('sm_test', '1'); else sessionStorage.removeItem('sm_test');
           }} /> Test mode
         </label>
         <button className="quiet" onClick={async () => {
-          if (testMode) { await api('/api/admin/test-mode', 'POST', { on: false }); setTestMode(false); }
+          if (testMode) { await api('/api/admin/test-mode', 'POST', { on: false }); setTestMode(false); sessionStorage.removeItem('sm_test'); }
           await api('/api/admin/login', 'DELETE');
           setAuth({ admin: false, configured: true });
         }}>Sign out</button>
@@ -408,7 +412,7 @@ export default function Admin() {
               <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
                 <h2 style={{ marginBottom: 0 }}>Map · {placed} of {stories.length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
                 <button type="button" className="ghost" style={{ fontSize: 13 }} onClick={async () => {
-                  if (!testMode) { await api('/api/admin/test-mode', 'POST', { on: true }); setTestMode(true); }
+                  if (!testMode) { await api('/api/admin/test-mode', 'POST', { on: true }); setTestMode(true); sessionStorage.setItem('sm_test', '1'); }
                   window.open(link, '_blank');
                 }}>Write a test story →</button>
               </div>

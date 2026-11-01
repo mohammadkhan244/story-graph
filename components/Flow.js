@@ -315,7 +315,7 @@ export default function Flow({ mode, id }) {
     }
   }, [mine]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    setTestMode(document.cookie.split(';').some((c) => c.trim() === 'sm_test=1'));
+    setTestMode(sessionStorage.getItem('sm_test') === '1');
   }, []);
 
   async function fetchPersonalizedQuestions(body) {

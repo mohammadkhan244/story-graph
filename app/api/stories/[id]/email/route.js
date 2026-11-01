@@ -147,9 +147,8 @@ ${questionsHtml ? `<tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da
 
 ${buildReadingHtml(story.reading && story.reading.raw)}
 
-<tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da;">
-  <p style="margin:0 0 10px;"><a href="${esc(storyUrl)}" style="color:#a72f39;text-decoration:none;font-size:15px;">View your story on the map</a></p>
-  <p style="margin:0;"><a href="${esc(mapUrl)}" style="color:#a72f39;text-decoration:none;font-size:15px;">See the full map</a></p>
+<tr><td style="padding:28px 0;border-bottom:1px solid #e8e4da;">
+  <a href="${esc(mapUrl)}" style="display:inline-block;padding:13px 28px;background:#a72f39;color:#fffdf6;text-decoration:none;font-size:15px;font-family:Arial,sans-serif;font-weight:700;border-radius:8px;letter-spacing:0.01em;">See your story on the map →</a>
 </td></tr>
 
 <tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da;">
