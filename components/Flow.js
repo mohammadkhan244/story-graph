@@ -238,12 +238,17 @@ export default function Flow({ mode, id }) {
 
   function setArrow(_id, xy) {
     setMap((m) => ({ ...m, points: m.points.map((p) => (p.id === mine.story.id ? { ...p, arrow: xy, stays: false } : p)) }));
+    // Also update mine.story so test stories (excluded from map.points) track their arrow
+    const updated = { ...mine, story: { ...mine.story, arrow: xy, stays: false } };
+    setMine(updated); ls.set(mineKey, updated);
     saveArrow({ arrow: xy });
     setDrawing(false);
     fetchPersonalizedQuestions({ arrow: xy });
   }
   function stay() {
     setMap((m) => ({ ...m, points: m.points.map((p) => (p.id === mine.story.id ? { ...p, arrow: null, stays: true } : p)) }));
+    const updated = { ...mine, story: { ...mine.story, arrow: null, stays: true } };
+    setMine(updated); ls.set(mineKey, updated);
     saveArrow({ stays: true }); setDrawing(false);
     fetchPersonalizedQuestions({ stays: true });
   }
