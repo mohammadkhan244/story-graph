@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import StoryMap from './StoryMap';
 import BrandBar from './BrandBar';
+import FictioneeringBlock from './FictioneeringBlock';
 import { classifyArrow, questions } from '@/lib/questions';
 
 const ARROW_LABEL = {
@@ -264,6 +265,11 @@ export default function MapView({ id }) {
               </a>
               <a href="/" className="textlink">Pick a different decision</a>
             </div>
+          </div>
+        )}
+        {ctaSlug && (
+          <div style={{ marginTop: 16 }}>
+            <FictioneeringBlock />
           </div>
         )}
       </div>

@@ -61,6 +61,32 @@ function arrowDirection(story, axes) {
   return `${label}: ${toward}`;
 }
 
+function escMd(text) {
+  // Strip basic markdown markers for plain-email rendering
+  return esc(text)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+}
+
+function buildReadingHtml(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  const chunks = ('## ' + raw.replace(/^\s*## /, '')).split(/\n(?=## )/);
+  const sections = chunks.map((chunk) => {
+    const nl = chunk.indexOf('\n');
+    const header = (nl === -1 ? chunk : chunk.slice(0, nl)).replace(/^## /, '').trim();
+    const body = nl === -1 ? '' : chunk.slice(nl + 1).trim();
+    return { header, body };
+  }).filter((s) => s.header && s.body.trim());
+  if (!sections.length) return '';
+  return `<tr><td style="padding:28px 0;border-bottom:1px solid #e8e4da;">
+  <p style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8a9098;margin:0 0 20px;font-family:Arial,sans-serif;">Your reading</p>
+  ${sections.map(({ header, body }) => `
+  <p style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#5a6068;margin:0 0 6px;font-family:Arial,sans-serif;">${esc(header)}</p>
+  ${body.split(/\n{2,}/).map((para) => `<p style="font-size:15px;line-height:1.7;color:#0c1012;margin:0 0 12px;">${escMd(para.trim().replace(/\n/g, ' '))}</p>`).join('')}
+  `).join('<hr style="border:none;border-top:1px solid #e8e4da;margin:16px 0;">')}
+</td></tr>`;
+}
+
 function buildHtml(story, session, questions, baseUrl) {
   const axes = session.axes || {};
   const ax = axes.x || {}, ay = axes.y || {};
@@ -119,6 +145,8 @@ ${questionsHtml ? `<tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da
   ${questionsHtml}
 </td></tr>` : ''}
 
+${buildReadingHtml(story.reading && story.reading.raw)}
+
 <tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da;">
   <p style="margin:0 0 10px;"><a href="${esc(storyUrl)}" style="color:#a72f39;text-decoration:none;font-size:15px;">View your story on the map</a></p>
   <p style="margin:0;"><a href="${esc(mapUrl)}" style="color:#a72f39;text-decoration:none;font-size:15px;">See the full map</a></p>
@@ -126,6 +154,10 @@ ${questionsHtml ? `<tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da
 
 <tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da;">
   <p style="font-size:14px;color:#8a9098;margin:0;">Facing this decision as a team? <a href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map" style="color:#79998b;text-decoration:none;">Run it in a workshop →</a></p>
+</td></tr>
+
+<tr><td style="padding:20px 0;border-bottom:1px solid #e8e4da;">
+  <p style="font-size:14px;color:#5a6068;margin:0;">Learn how to apply your story: <a href="https://fictioneering-newsletter.themohammadkhan.com/subscribe?utm_source=story-map-email" style="color:#5a6068;text-decoration:underline;">subscribe to Fictioneering →</a></p>
 </td></tr>
 
 <tr><td style="padding:28px 0 0;">
@@ -200,7 +232,7 @@ export async function POST(req, { params }) {
       console.log(html.slice(0, 1000), '\n...(truncated)\n');
       console.log('--- END MOCK EMAIL ---\n');
     } else if (process.env.RESEND_API_KEY) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
+      const resend = new Resend(process.env.RESEND_API_KEY.replace(/^﻿/, ''));
       const from = process.env.EMAIL_FROM || 'Story Map <stories@story-map.themohammadkhan.com>';
       const { error } = await resend.emails.send({ from, to: email, subject, html });
       if (error) {

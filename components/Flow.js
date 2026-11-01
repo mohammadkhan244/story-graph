@@ -3,8 +3,30 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryMap, { Mark, signalColors } from './StoryMap';
 import BrandBar from './BrandBar';
 import LoadingBar from './LoadingBar';
+import FictioneeringBlock from './FictioneeringBlock';
 import { artSvg, decision, signalIcon } from '@/lib/cards';
 import { questions } from '@/lib/questions';
+
+function inlineMd(text) {
+  return text.split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith('*') && part.endsWith('*')) return <em key={i}>{part.slice(1, -1)}</em>;
+    return part;
+  });
+}
+function renderMd(text) {
+  const out = [];
+  let listItems = [], k = 0;
+  const flush = () => { if (listItems.length) { out.push(<ul key={k++} style={{ margin: '6px 0', paddingLeft: 20 }}>{listItems}</ul>); listItems = []; } };
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (/^[-*]\s/.test(t)) { listItems.push(<li key={k++} style={{ marginBottom: 4 }}>{inlineMd(t.slice(2))}</li>); }
+    else if (/^\d+\.\s/.test(t)) { listItems.push(<li key={k++} style={{ marginBottom: 4 }}>{inlineMd(t.replace(/^\d+\.\s/, ''))}</li>); }
+    else { flush(); if (t) out.push(<p key={k++} style={{ margin: '0 0 10px' }}>{inlineMd(t)}</p>); }
+  }
+  flush();
+  return out;
+}
 
 const PLACING_STAGES = [
   { target: 18, label: 'Saving your story…', detail: '', duration: 500 },
@@ -679,7 +701,7 @@ export default function Flow({ mode, id }) {
                         const header = (nl === -1 ? chunk : chunk.slice(0, nl)).replace(/^## /, '').trim();
                         const body = nl === -1 ? '' : chunk.slice(nl + 1).trim();
                         return { header, body };
-                      }).filter((s) => s.header);
+                      }).filter((s) => s.header && s.body.trim());
                       let oneMoveText = '';
                       const renderedSections = sections.map((sec) => {
                         let body = sec.body;
@@ -697,7 +719,7 @@ export default function Flow({ mode, id }) {
                               <details key={header} className={'reading-section' + (isPart8 ? ' highlight' : '')} open={isPart8 || undefined}>
                                 <summary>{header}</summary>
                                 <div className="reading-body">
-                                  {body.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
+                                  {renderMd(body)}
                                 </div>
                               </details>
                             );
@@ -714,7 +736,7 @@ export default function Flow({ mode, id }) {
                   </div>
                 )}
                 {!isSession && mine && (
-                  <div style={{ borderTop: '1px solid var(--frame)', paddingTop: 18 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--frame)', paddingTop: 18 }}>
                     <div className="panel" style={{ borderRadius: 12, padding: '20px 20px 18px' }}>
                       <div className="stack" style={{ gap: 12 }}>
                         <strong style={{ font: '400 20px var(--title)', color: 'var(--paper)', display: 'block' }}>Email me my story</strong>
@@ -745,6 +767,7 @@ export default function Flow({ mode, id }) {
                         )}
                       </div>
                     </div>
+                    <FictioneeringBlock prefillEmail={emailAddr} />
                   </div>
                 )}
               </div>
