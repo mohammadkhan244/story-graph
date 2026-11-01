@@ -204,13 +204,8 @@ svg.map.drawing { cursor: crosshair; }
 .qdots { display: flex; gap: 6px; }
 .qdots span { width: 18px; height: 3px; border-radius: 2px; background: var(--frame); }
 .qdots span.on { background: var(--paper); }
-/* axis legend */
-.axis-legend { display: flex; flex-direction: column; gap: 10px; margin: 6px 4px 0; padding: 10px 0 6px; border-top: 1px solid var(--frame); }
-.axis-legend .kicker { margin-bottom: 2px; }
-.axis-legend-row { display: flex; flex-direction: column; gap: 4px; }
-.axis-legend-row strong { font: 600 11px var(--labelf); letter-spacing: .1em; text-transform: uppercase; color: var(--note); }
-.axis-legend-row span { font-size: 13px; color: var(--muted); line-height: 1.45; }
-.axis-legend-row span em { font-style: normal; color: var(--note); margin-right: 4px; }
+/* interactive pole labels */
+.map .pole[role="button"]:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
 
 /* reading panel */
 .reading-panel { margin-top: 20px; border-top: 1px solid var(--frame); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; }

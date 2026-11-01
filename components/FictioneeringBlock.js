@@ -14,25 +14,27 @@ export default function FictioneeringBlock({ prefillEmail = '' }) {
     + (prefillEmail ? `&email=${encodeURIComponent(prefillEmail)}` : '');
 
   return (
-    <div style={{ background: '#fffdf6', color: '#0c1012', border: '1px solid #8d9d9d', borderRadius: 12, padding: '24px 20px' }}>
-      <span style={{ fontFamily: 'var(--labelf)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: 11, color: '#5a6068', display: 'block', marginBottom: 8 }}>Fictioneering</span>
-      <p style={{ fontFamily: 'var(--title)', fontWeight: 400, fontSize: 22, lineHeight: 1.25, margin: '0 0 6px', color: '#0c1012' }}>Learn how to apply your story.</p>
-      <p style={{ fontFamily: 'var(--body)', fontSize: 15, margin: '0 0 16px', color: '#3a4048', lineHeight: 1.55 }}>Weekly essays on using fiction to make real decisions. Free.</p>
+    <div style={{ background: '#344245', border: '1px solid #8d9d9d', borderRadius: 12, padding: '24px 20px' }}>
+      <span style={{ fontFamily: 'var(--labelf)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: 11, color: '#afbeb1', display: 'block', marginBottom: 8 }}>Fictioneering</span>
+      <p style={{ fontFamily: 'var(--title)', fontWeight: 400, fontSize: 22, lineHeight: 1.25, margin: '0 0 6px', color: '#fffdf6' }}>Learn how to apply your story.</p>
+      <p style={{ fontFamily: 'var(--body)', fontSize: 15, margin: '0 0 16px', color: '#d4dfdc', lineHeight: 1.55 }}>Weekly essays on using fiction to make real decisions. Free.</p>
       {timedOut ? (
-        <a href={subUrl} target="_blank" rel="noreferrer" style={{ color: '#0c1012', textDecoration: 'underline', fontSize: 15 }}>Subscribe on Substack →</a>
+        <a href={subUrl} target="_blank" rel="noreferrer" style={{ color: '#afbeb1', textDecoration: 'underline', fontSize: 15 }}>Subscribe on Substack →</a>
       ) : (
         <>
-          <iframe
-            src="https://fictioneering-newsletter.themohammadkhan.com/embed?transparent=1&light=1"
-            title="Subscribe to Fictioneering"
-            loading="lazy"
-            style={{ border: 0, background: 'transparent', width: '100%', maxWidth: 480, height: 150, display: 'block', margin: '0 auto' }}
-            scrolling="no"
-            onLoad={() => setLoaded(true)}
-          />
+          <div style={{ overflow: 'hidden' }}>
+            <iframe
+              src="https://fictioneering-newsletter.themohammadkhan.com/embed?transparent=1"
+              title="Subscribe to Fictioneering"
+              loading="lazy"
+              scrolling="no"
+              style={{ border: 0, background: 'transparent', width: '100%', maxWidth: 480, height: 110, display: 'block' }}
+              onLoad={() => setLoaded(true)}
+            />
+          </div>
           {!loaded && (
             <p style={{ textAlign: 'center', marginTop: 8, fontSize: 13 }}>
-              <a href={subUrl} target="_blank" rel="noreferrer" style={{ color: '#5a6068', textDecoration: 'underline' }}>Subscribe on Substack →</a>
+              <a href={subUrl} target="_blank" rel="noreferrer" style={{ color: '#afbeb1', textDecoration: 'underline' }}>Subscribe on Substack →</a>
             </p>
           )}
         </>

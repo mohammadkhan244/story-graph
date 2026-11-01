@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SHAPES } from '@/lib/cards';
 
 /* Brand map: ink field, sage dots, your dot is the one ruby signal on screen.
@@ -69,7 +69,33 @@ export default function StoryMap({
   const svgRef = useRef(null);
   const [drag, setDrag] = useState(null);
   const [draft, setDraft] = useState(null); // live arrow head while drawing
+  const [tooltipPole, setTooltipPole] = useState(null);
   const ax = (axes && axes.x) || {}, ay = (axes && axes.y) || {};
+
+  useEffect(() => {
+    if (!tooltipPole) return;
+    const handler = (e) => { if (e.key === 'Escape') setTooltipPole(null); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [tooltipPole]);
+
+  function poleProps(id, name, desc) {
+    if (!desc) return {};
+    const active = tooltipPole === id;
+    return {
+      role: 'button',
+      tabIndex: 0,
+      style: { cursor: 'pointer', textDecoration: active ? 'underline' : 'none' },
+      'aria-label': `${name}: ${desc}`,
+      onClick: (e) => { e.stopPropagation(); setTooltipPole(active ? null : id); },
+      onKeyDown: (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault(); e.stopPropagation();
+          setTooltipPole(active ? null : id);
+        }
+      },
+    };
+  }
   const { shape } = signalColors(points);
 
   function toXY(e) {
@@ -91,7 +117,8 @@ export default function StoryMap({
   const ordered = [...points].sort((a, b) => (a.id === youId) - (b.id === youId));
   return (
     <svg ref={svgRef} className={'map' + (drawing ? ' drawing' : '') + (big ? ' big' : '') + (reveal ? ' reveal' : '')}
-      viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Map of ${n} stories`} {...surface}>
+      viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Map of ${n} stories`} {...surface}
+      onClick={() => { if (!drawing && tooltipPole) setTooltipPole(null); }}>
       {[...Array(11)].map((_, i) => (
         <g key={'g' + i}>
           <line className="grid" x1={px(i - 5)} y1={M} x2={px(i - 5)} y2={H - M} />
@@ -109,11 +136,11 @@ export default function StoryMap({
           <text className="qlab" x={W - M - 12} y={M + 24} textAnchor="end">{short(quads.hh, 30)}</text>
         </>
       )}
-      <text className="pole" x={M} y={H - M + 24}>← {short(ax.low || '', 30)}{ax.lowDesc && <title>{ax.low}: {ax.lowDesc}</title>}</text>
-      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end">{short(ax.high || '', 30)} →{ax.highDesc && <title>{ax.high}: {ax.highDesc}</title>}</text>
+      <text className="pole" x={M} y={H - M + 24} {...poleProps('xlow', ax.low, ax.lowDesc)}>← {short(ax.low || '', 30)}</text>
+      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end" {...poleProps('xhigh', ax.high, ax.highDesc)}>{short(ax.high || '', 30)} →</text>
       <text className="axname" x={W / 2} y={H - 18} textAnchor="middle">{ax.name || ''}</text>
-      <text className="pole" x={M - 22} y={H - M} transform={`rotate(-90 ${M - 22} ${H - M})`}>← {short(ay.low || '', 30)}{ay.lowDesc && <title>{ay.low}: {ay.lowDesc}</title>}</text>
-      <text className="pole" x={M - 22} y={M} textAnchor="end" transform={`rotate(-90 ${M - 22} ${M})`}>{short(ay.high || '', 30)} →{ay.highDesc && <title>{ay.high}: {ay.highDesc}</title>}</text>
+      <text className="pole" x={M - 22} y={H - M} transform={`rotate(-90 ${M - 22} ${H - M})`} {...poleProps('ylow', ay.low, ay.lowDesc)}>← {short(ay.low || '', 30)}</text>
+      <text className="pole" x={M - 22} y={M} textAnchor="end" transform={`rotate(-90 ${M - 22} ${M})`} {...poleProps('yhigh', ay.high, ay.highDesc)}>{short(ay.high || '', 30)} →</text>
       <text className="axname" x={20} y={H / 2} textAnchor="middle" transform={`rotate(-90 20 ${H / 2})`}>{ay.name || ''}</text>
 
       {background.map((p) => <circle key={'bg' + p.id} className="bgdot" cx={px(p.x)} cy={py(p.y)} r={4} />)}
@@ -198,6 +225,27 @@ export default function StoryMap({
           </g>
         );
       })}
+      {tooltipPole && (() => {
+        const TW = 240, TH = 80;
+        const poles = {
+          xlow:  ax.lowDesc  ? { label: ax.low,  desc: ax.lowDesc,  tx: M,       ty: H - M - 10 } : null,
+          xhigh: ax.highDesc ? { label: ax.high, desc: ax.highDesc, tx: W - M,   ty: H - M - 10, end: true } : null,
+          ylow:  ay.lowDesc  ? { label: ay.low,  desc: ay.lowDesc,  tx: M + 10,  ty: H - M - 10 } : null,
+          yhigh: ay.highDesc ? { label: ay.high, desc: ay.highDesc, tx: M + 10,  ty: M + 50 } : null,
+        };
+        const tp = poles[tooltipPole];
+        if (!tp) return null;
+        const fx = tp.end ? Math.max(M, tp.tx - TW) : Math.min(W - M - TW, tp.tx);
+        const fy = Math.max(M, tp.ty - TH - 8);
+        return (
+          <foreignObject x={fx} y={fy} width={TW} height={TH} style={{ overflow: 'visible' }}>
+            <div style={{ background: '#1a2326', border: '1px solid #344245', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#b8cdc4', lineHeight: 1.45, pointerEvents: 'none' }}>
+              <strong style={{ fontFamily: 'var(--labelf)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#d4dfdc', display: 'block', marginBottom: 4 }}>{tp.label}</strong>
+              {tp.desc}
+            </div>
+          </foreignObject>
+        );
+      })()}
     </svg>
   );
 }

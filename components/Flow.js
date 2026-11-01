@@ -552,32 +552,10 @@ export default function Flow({ mode, id }) {
                 arrowFor={drawing && mine ? mine.story.id : null} onArrow={setArrow}
                 pastArrowEnds={pastArrows.length ? pastArrows : undefined} />
             </div>
-            {map.axes && (map.axes.x.lowDesc || map.axes.y.lowDesc) && (
-              <div className="axis-legend">
-                <span className="kicker">What the axes mean</span>
-                {['x', 'y'].map((k) => {
-                  const ax = map.axes[k];
-                  if (!ax || (!ax.lowDesc && !ax.highDesc)) return null;
-                  const dir = k === 'x' ? 'Horizontal' : 'Vertical';
-                  return (
-                    <div key={k} className="axis-legend-row">
-                      <strong>{dir}: {ax.name}</strong>
-                      {ax.lowDesc && <span><em>← {ax.low}</em> {ax.lowDesc}</span>}
-                      {ax.highDesc && <span><em>{ax.high} →</em> {ax.highDesc}</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="legend">
-              <span><svg viewBox="-10 -10 20 20"><circle r="7" fill="#a72f39" /></svg>You</span>
-              {tags.length > 1 && tags.slice(0, 5).map((t) => (
-                <span key={t}><svg viewBox="-10 -10 20 20"><Mark shape={shape(t)} r={6} fill="#afbeb1" stroke="#afbeb1" /></svg>{t.split(':')[0]}</span>
-              ))}
-              {points.some((p) => p.source === 'card-exercise') && <span><svg viewBox="-10 -10 20 20"><circle r="6" fill="none" stroke="#afbeb1" strokeWidth="2" /></svg>From the 90-second card exercise</span>}
-              {points.some((p) => p.arrow) && <span>→ where they'd rather be</span>}
-              {points.some((p) => p.id !== (mine && mine.story.id) && p.body != null) && (
-                <span><svg viewBox="-10 -10 20 20"><circle r="6" fill="#afbeb1" /><circle r="10" fill="none" stroke="#afbeb1" strokeWidth="1.5" opacity="0.6" /></svg>tap ring to read</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '8px 4px 2px', flexWrap: 'wrap' }}>
+              <p style={{ font: '12px var(--body)', color: 'var(--sage)', margin: 0 }}>● You  → where you'd rather be</p>
+              {(stage === 'think' || stage === 'end') && mine && me && me.x != null && (
+                <button type="button" className="textlink" onClick={tryAnotherDirection}>Redraw arrow ↺</button>
               )}
             </div>
           </div>
@@ -634,7 +612,6 @@ export default function Flow({ mode, id }) {
                       {qi < myQs.length - 1
                         ? <button type="button" onClick={() => setQi(qi + 1)}>Next question</button>
                         : <button type="button" onClick={() => setStage('end')}>Done</button>}
-                      <button type="button" className="textlink" onClick={tryAnotherDirection}>Try another direction</button>
                     </div>
                   </>
                 )}
@@ -649,7 +626,6 @@ export default function Flow({ mode, id }) {
                   {!isSession && <button type="button" className="endcard" onClick={restart}><strong>Write another</strong>Same question, new story.</button>}
                   <a className="endcard" href="/"><strong>Try a different decision</strong>Four more cards are waiting.</a>
                 </div>
-                <button type="button" className="textlink" onClick={tryAnotherDirection}>Try another direction</button>
                 <p className="note" style={{ marginTop: 4 }}>Facing this decision as a team? <a className="textlink" href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map">Run it in a workshop →</a></p>
                 {!isSession && (
                   <div className="reading-panel">
