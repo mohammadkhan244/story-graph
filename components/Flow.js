@@ -105,6 +105,10 @@ export default function Flow({ mode, id }) {
   const [resumeMode, setResumeMode] = useState(false);
   const [pastMine, setPastMine] = useState(null);
   const [sharedStory, setSharedStory] = useState(false);
+  const [emailAddr, setEmailAddr] = useState('');
+  const [emailFollowUp, setEmailFollowUp] = useState(false);
+  const [emailHp, setEmailHp] = useState('');
+  const [emailStatus, setEmailStatus] = useState('idle'); // idle | sending | sent | error
   const [myQsData, setMyQsData] = useState(null); // null = use template
   const [myQsLoading, setMyQsLoading] = useState(false);
   const recRef = useRef(null);
@@ -317,6 +321,22 @@ export default function Flow({ mode, id }) {
     });
   }
   function note(i, v) { const n = { ...notes, [i]: v }; setNotes(n); if (mine) ls.set('sm-notes-' + mine.story.id, n); }
+
+  async function handleEmailSubmit(e) {
+    e.preventDefault();
+    if (!mine || !emailAddr.trim()) return;
+    setEmailStatus('sending');
+    try {
+      const r = await fetch(`/api/stories/${mine.story.id}/email`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: mine.token, email: emailAddr.trim(), follow_up: emailFollowUp, website: emailHp }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setEmailStatus('error'); return; }
+      setEmailStatus('sent');
+    } catch { setEmailStatus('error'); }
+  }
 
   if (err) return <main className="flow"><BrandBar /><p className="warn center">{err}</p></main>;
   if (!s || stage === 'loading') return <main className="flow"><BrandBar /><p className="note center">Loading…</p></main>;
@@ -685,6 +705,40 @@ export default function Flow({ mode, id }) {
                         </div>
                       );
                     })()}
+                  </div>
+                )}
+                {!isSession && mine && (
+                  <div style={{ borderTop: '1px solid var(--frame)', paddingTop: 18 }}>
+                    <div className="panel" style={{ borderRadius: 12, padding: '20px 20px 18px' }}>
+                      <div className="stack" style={{ gap: 12 }}>
+                        <strong style={{ font: '400 20px var(--title)', color: 'var(--paper)', display: 'block' }}>Email me my story</strong>
+                        {emailStatus === 'sent' ? (
+                          <p className="ok" style={{ margin: 0 }}>Sent. Check your inbox.</p>
+                        ) : (
+                          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div>
+                              <label htmlFor="em-email">Email</label>
+                              <input id="em-email" type="email" value={emailAddr} onChange={(e) => setEmailAddr(e.target.value)}
+                                placeholder="you@example.com" autoComplete="email" disabled={emailStatus === 'sending'} />
+                            </div>
+                            <label className="check">
+                              <input type="checkbox" checked={emailFollowUp} onChange={(e) => setEmailFollowUp(e.target.checked)} />
+                              Want me to follow up with you about this?
+                            </label>
+                            <div className="hp" aria-hidden="true">
+                              <input tabIndex={-1} autoComplete="off" value={emailHp} onChange={(e) => setEmailHp(e.target.value)} />
+                            </div>
+                            <div>
+                              <button className="big primary" type="submit" disabled={emailStatus === 'sending' || !emailAddr.trim()}>
+                                {emailStatus === 'sending' ? 'Sending...' : 'Send it to me'}
+                              </button>
+                              {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
+                            </div>
+                            <p className="note" style={{ margin: 0 }}>We'll email your story and reading. No newsletter unless you ask.</p>
+                          </form>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
