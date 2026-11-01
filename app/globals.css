@@ -14,7 +14,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: clip; }
 body {
   background-color: var(--ink);
   background-image: linear-gradient(rgba(175,190,177,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(175,190,177,.045) 1px, transparent 1px);
@@ -45,7 +45,7 @@ h3 { font: 400 26px/1.2 var(--title); margin: 0; text-wrap: balance; }
 .brandbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 1180px; margin: 0 auto 28px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 600 12px var(--labelf); letter-spacing: .18em; text-transform: uppercase; color: var(--label); }
 .brand img { width: 30px; height: 30px; border-radius: 7px; }
-.textlink { background: none; border: 0; padding: 0; cursor: pointer; color: var(--label); font: 600 12px var(--labelf); letter-spacing: .12em; text-transform: uppercase; border-bottom: 1.5px solid var(--sage-deep); padding-bottom: 3px; }
+.textlink { background: none; border: 0; padding: 0; cursor: pointer; color: var(--label); font: 600 12px var(--labelf); letter-spacing: .12em; text-transform: uppercase; border-bottom: 1.5px solid var(--sage-deep); padding-bottom: 3px; text-decoration: none; }
 .textlink:hover { color: var(--paper); border-color: var(--paper); }
 .test-badge { background: var(--ruby); color: var(--paper); font: 700 10px var(--labelf); letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
 .test-tag { color: var(--ruby) !important; }
@@ -163,8 +163,8 @@ textarea.page { min-height: 46vh; font: 400 20px/1.65 var(--title); background: 
 
 /* map */
 .mapwrap { background: var(--ink-2); border: 1px solid var(--frame); border-radius: 14px; padding: 10px; }
-svg.map { display: block; width: 100%; height: auto; touch-action: none; user-select: none; }
-svg.map.drawing { cursor: crosshair; }
+svg.map { display: block; width: 100%; height: auto; touch-action: pan-y; user-select: none; }
+svg.map.drawing { cursor: crosshair; touch-action: none; }
 .map .grid { stroke: rgba(175,190,177,.07); stroke-width: 1; }
 .map .frame { fill: none; stroke: var(--frame); stroke-width: 1.5; }
 .map .axis { stroke: var(--sage-deep); stroke-width: 1.2; }
@@ -201,6 +201,7 @@ svg.map.drawing { cursor: crosshair; }
 .qcard { background: var(--ink-2); border: 1px solid var(--frame); border-radius: 14px; padding: 28px 26px; display: grid; gap: 18px; animation: dealIn .45s both; }
 .qcard .q { font: 400 clamp(22px, 3vw, 28px)/1.3 var(--title); text-wrap: balance; }
 .qcard .q em { color: var(--sage); font-style: normal; }
+.qcard .q .story-q { font-style: italic; color: var(--label); }
 .qdots { display: flex; gap: 6px; }
 .qdots span { width: 18px; height: 3px; border-radius: 2px; background: var(--frame); }
 .qdots span.on { background: var(--paper); }
@@ -318,4 +319,35 @@ footer.foot a { color: var(--label); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- mobile helpers (default: hidden until breakpoint) ---------- */
+.draw-mobile-hint { display: none; }
+.map-toggle { display: none; }
+.decision-short { display: none; }
+
+/* ≤ 860px: single-column map; show mobile drawing hint; map toggle */
+@media (max-width: 860px) {
+  .draw-mobile-hint { display: block; margin-top: 14px; }
+  .draw-desktop-hint { display: none; }
+  .map-toggle { display: block; text-align: center; margin: 10px auto 0; }
+  .map-collapsed { display: none; }
+  .workshop-note a { display: block; margin-top: 4px; white-space: nowrap; }
+}
+
+/* ≤ 480px: compact brandbar */
+@media (max-width: 480px) {
+  .brand { white-space: nowrap; }
+  .decision-full { display: none; }
+  .decision-short { display: inline; }
+  .brandbar { gap: 8px; }
+}
+
+/* ≤ 760px: input zoom prevention, minimum text sizes, tap targets */
+@media (max-width: 760px) {
+  input, textarea, select { font-size: 16px !important; }
+  .pcard-meta { font-size: 12px; }
+  .sig-type { font-size: 12px; }
+  .steps div { font-size: 12px; }
+  .textlink { min-height: 44px; display: inline-flex; align-items: center; padding-top: 0; }
 }

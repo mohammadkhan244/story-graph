@@ -70,7 +70,20 @@ export default function StoryMap({
   const [drag, setDrag] = useState(null);
   const [draft, setDraft] = useState(null); // live arrow head while drawing
   const [tooltipPole, setTooltipPole] = useState(null);
+  const [svgWidth, setSvgWidth] = useState(W);
   const ax = (axes && axes.x) || {}, ay = (axes && axes.y) || {};
+
+  // Track rendered SVG width so we can scale up font sizes that would be < 12px on screen.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => { if (e.contentRect.width > 0) setSvgWidth(e.contentRect.width); });
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, []);
+  // fs(base) → the SVG font-size that renders as at least 12px on screen
+  const scale = svgWidth / W;
+  const fs = (base) => Math.ceil(Math.max(base, 12 / Math.max(scale, 0.05)));
 
   useEffect(() => {
     if (!tooltipPole) return;
@@ -130,18 +143,18 @@ export default function StoryMap({
       <line className="axis" x1={M} y1={py(0)} x2={W - M} y2={py(0)} />
       {quads && (
         <>
-          <text className="qlab" x={M + 12} y={H - M - 12}>{short(quads.ll, 30)}</text>
-          <text className="qlab" x={W - M - 12} y={H - M - 12} textAnchor="end">{short(quads.hl, 30)}</text>
-          <text className="qlab" x={M + 12} y={M + 24}>{short(quads.lh, 30)}</text>
-          <text className="qlab" x={W - M - 12} y={M + 24} textAnchor="end">{short(quads.hh, 30)}</text>
+          <text className="qlab" x={M + 12} y={H - M - 12} style={{ fontSize: fs(15) }}>{short(quads.ll, 30)}</text>
+          <text className="qlab" x={W - M - 12} y={H - M - 12} textAnchor="end" style={{ fontSize: fs(15) }}>{short(quads.hl, 30)}</text>
+          <text className="qlab" x={M + 12} y={M + 24} style={{ fontSize: fs(15) }}>{short(quads.lh, 30)}</text>
+          <text className="qlab" x={W - M - 12} y={M + 24} textAnchor="end" style={{ fontSize: fs(15) }}>{short(quads.hh, 30)}</text>
         </>
       )}
-      <text className="pole" x={M} y={H - M + 24} {...poleProps('xlow', ax.low, ax.lowDesc)}>← {short(ax.low || '', 30)}</text>
-      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end" {...poleProps('xhigh', ax.high, ax.highDesc)}>{short(ax.high || '', 30)} →</text>
-      <text className="axname" x={W / 2} y={H - 18} textAnchor="middle">{ax.name || ''}</text>
-      <text className="pole" x={M - 22} y={H - M} transform={`rotate(-90 ${M - 22} ${H - M})`} {...poleProps('ylow', ay.low, ay.lowDesc)}>← {short(ay.low || '', 30)}</text>
-      <text className="pole" x={M - 22} y={M} textAnchor="end" transform={`rotate(-90 ${M - 22} ${M})`} {...poleProps('yhigh', ay.high, ay.highDesc)}>{short(ay.high || '', 30)} →</text>
-      <text className="axname" x={20} y={H / 2} textAnchor="middle" transform={`rotate(-90 20 ${H / 2})`}>{ay.name || ''}</text>
+      <text className="pole" x={M} y={H - M + 24} style={{ fontSize: fs(10.5) }} {...poleProps('xlow', ax.low, ax.lowDesc)}>← {short(ax.low || '', 30)}</text>
+      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end" style={{ fontSize: fs(10.5) }} {...poleProps('xhigh', ax.high, ax.highDesc)}>{short(ax.high || '', 30)} →</text>
+      <text className="axname" x={W / 2} y={H - 18} textAnchor="middle" style={{ fontSize: fs(11) }}>{ax.name || ''}</text>
+      <text className="pole" x={M - 22} y={H - M} transform={`rotate(-90 ${M - 22} ${H - M})`} style={{ fontSize: fs(10.5) }} {...poleProps('ylow', ay.low, ay.lowDesc)}>← {short(ay.low || '', 30)}</text>
+      <text className="pole" x={M - 22} y={M} textAnchor="end" transform={`rotate(-90 ${M - 22} ${M})`} style={{ fontSize: fs(10.5) }} {...poleProps('yhigh', ay.high, ay.highDesc)}>{short(ay.high || '', 30)} →</text>
+      <text className="axname" x={20} y={H / 2} textAnchor="middle" transform={`rotate(-90 20 ${H / 2})`} style={{ fontSize: fs(11) }}>{ay.name || ''}</text>
 
       {background.map((p) => <circle key={'bg' + p.id} className="bgdot" cx={px(p.x)} cy={py(p.y)} r={4} />)}
 
@@ -218,7 +231,7 @@ export default function StoryMap({
               )}
             </g>
             {(showLabels || you || sel) && (
-              <text className={'dlab' + (you ? ' me' : '')} textAnchor="middle" y={you ? 38 : 24}>
+              <text className={'dlab' + (you ? ' me' : '')} textAnchor="middle" y={you ? 38 : 24} style={{ fontSize: fs(you ? 13 : 11) }}>
                 {you ? <tspan x="0" dy="0">You</tspan> : testDot ? <tspan x="0" dy="0" style={{ fill: '#a72f39' }}>TEST</tspan> : lines.map((ln, k) => <tspan key={k} x="0" dy={k ? '1.15em' : '0'}>{ln}</tspan>)}
               </text>
             )}

@@ -28,6 +28,26 @@ function renderMd(text) {
   return out;
 }
 
+// Italicise story excerpts (text inside double-quote pairs) inside question strings.
+function renderQ(q) {
+  if (typeof q !== 'string') return q; // JSX element from template — pass through
+  const parts = q.split(/([“"][^”"]*[”"])/);
+  if (parts.length === 1) return inlineMd(q);
+  return parts.map((part, i) =>
+    i % 2 === 1
+      ? <em key={i} className="story-q">{part}</em>
+      : <span key={i}>{inlineMd(part)}</span>
+  );
+}
+// Truncate a quote at a word boundary; show at least `min` chars, cap at `max`.
+function truncateQuote(q, max = 120, min = 60) {
+  if (!q || q.length <= max) return q;
+  let cut = q.lastIndexOf(' ', max);
+  if (cut < min) cut = q.indexOf(' ', min);
+  if (cut < 0 || cut >= q.length) return q;
+  return q.slice(0, cut) + '…';
+}
+
 const PLACING_STAGES = [
   { target: 18, label: 'Saving your story…', detail: '', duration: 500 },
   { target: 42, label: 'Reading your story…', detail: 'Understanding what you wrote.', duration: 1500 },
@@ -133,8 +153,10 @@ export default function Flow({ mode, id }) {
   const [emailStatus, setEmailStatus] = useState('idle'); // idle | sending | sent | error
   const [myQsData, setMyQsData] = useState(null); // null = use template
   const [myQsLoading, setMyQsLoading] = useState(false);
+  const [showMap, setShowMap] = useState(true);
   const recRef = useRef(null);
   const taRef = useRef(null);
+  const mapRef = useRef(null);
   const readingKey = `sm-reading-${mode}-${id}`;
   const questionsKey = `sm-questions-${mode}-${id}`;
 
@@ -293,6 +315,13 @@ export default function Flow({ mode, id }) {
       setReadingStage('done');
     } catch (e) { setReadingStage('picking'); setMsg(String(e.message || e)); }
   }
+  function scrollToMap() {
+    setTimeout(() => {
+      if (mapRef.current && typeof window !== 'undefined' && window.innerWidth < 860) {
+        mapRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 50);
+  }
   function tryAnotherDirection() {
     if (me && me.arrow) {
       const updated = [...pastArrows, me.arrow].slice(-4);
@@ -301,7 +330,9 @@ export default function Flow({ mode, id }) {
     }
     setQi(0);
     setDrawing(true);
+    setShowMap(true);
     setStage('map');
+    scrollToMap();
   }
   useEffect(() => {
     if (mine) {
@@ -317,6 +348,13 @@ export default function Flow({ mode, id }) {
   useEffect(() => {
     setTestMode(sessionStorage.getItem('sm_test') === '1');
   }, []);
+  useEffect(() => {
+    if ((stage === 'think' || stage === 'end') && typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches) {
+      setShowMap(false);
+    } else {
+      setShowMap(true);
+    }
+  }, [stage]);
 
   async function fetchPersonalizedQuestions(body) {
     if (!mine) return;
@@ -378,7 +416,12 @@ export default function Flow({ mode, id }) {
 
   return (
     <main className="flow">
-      <BrandBar right={!isSession && <a className="textlink" href="/">Choose a different decision</a>} />
+      <BrandBar right={!isSession && (
+        <a className="textlink decision-link" href="/" aria-label="Choose a different decision">
+          <span className="decision-full">Choose a different decision</span>
+          <span className="decision-short" aria-hidden="true">↺ Decisions</span>
+        </a>
+      )} />
       {!['closed'].includes(stage) && (
         <div className="steps" aria-label="Progress">
           {STEPS.map((t, i) => <div key={t} className={i < stepIdx ? 'done' : i === stepIdx ? 'on' : ''}>{t}</div>)}
@@ -543,9 +586,9 @@ export default function Flow({ mode, id }) {
       )}
 
       {(stage === 'map' || stage === 'think' || stage === 'end') && map && map.axes && (
-        <section className="stage mapgrid">
+        <section className="stage mapgrid" data-stage={stage}>
           <div>
-            <div className="mapwrap">
+            <div className={showMap ? 'mapwrap' : 'mapwrap map-collapsed'} ref={mapRef}>
               <StoryMap axes={map.axes} quads={map.quads} points={points} background={map.background || []}
                 youId={mine && mine.story.id} selId={peek} reveal={reveal}
                 onSelect={(pid) => setPeek(pid === peek ? null : pid)}
@@ -554,17 +597,34 @@ export default function Flow({ mode, id }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '8px 4px 2px', flexWrap: 'wrap' }}>
               <p style={{ font: '12px var(--body)', color: 'var(--sage)', margin: 0 }}>● You  → where you'd rather be</p>
-              {(stage === 'think' || stage === 'end') && mine && me && me.x != null && (
-                <button type="button" className="textlink" onClick={tryAnotherDirection}>Redraw arrow ↺</button>
-              )}
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                {(stage === 'think' || stage === 'end') && mine && me && me.x != null && (
+                  <button type="button" className="textlink" onClick={tryAnotherDirection}>Redraw arrow ↺</button>
+                )}
+                {(stage === 'think' || stage === 'end') && (
+                  <button type="button" className="textlink map-toggle" onClick={() => setShowMap(v => !v)}>
+                    {showMap ? 'Hide map' : 'Show map ↓'}
+                  </button>
+                )}
+              </div>
             </div>
+            {/* Mobile-only drawing controls appear directly under the map */}
+            {stage === 'map' && drawing && (
+              <div className="draw-mobile-hint">
+                <p className="nudge">Tap or drag on the map to where you'd rather be. Anywhere you like.</p>
+                <div className="row">
+                  <button type="button" onClick={stay}>I'd stay here</button>
+                  <button type="button" className="quiet" onClick={() => setDrawing(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="side">
             {stage === 'map' && me && me.x != null && (
               <div className="landed">
                 <span className="kicker">Where you landed</span>
                 <p className="where">{where(map.axes, me)}</p>
-                {me.xq && <p className="quote">"{me.xq}"</p>}
+                {me.xq && <p className="quote">"{truncateQuote(me.xq)}"</p>}
                 {(() => {
                   const c = corners(points, me);
                   return (
@@ -576,11 +636,11 @@ export default function Flow({ mode, id }) {
                 })()}
                 {!drawing ? (
                   <div className="stack" style={{ marginTop: 6 }}>
-                    <button className="big primary" type="button" onClick={() => { setDrawing(true); setPeek(null); }}>{me.arrow || me.stays ? 'Redraw my arrow' : "Draw where you'd rather be"}</button>
+                    <button className="big primary" type="button" onClick={() => { setDrawing(true); setPeek(null); scrollToMap(); }}>{me.arrow || me.stays ? 'Redraw my arrow' : "Draw where you'd rather be"}</button>
                     {(me.arrow || me.stays) && <button className="big" type="button" onClick={() => { setQi(0); setStage('think'); }}>Think it through →</button>}
                   </div>
                 ) : (
-                  <div className="stack" style={{ marginTop: 6 }}>
+                  <div className="stack draw-desktop-hint" style={{ marginTop: 6 }}>
                     <p className="nudge">Tap or drag on the map to where you'd rather be. Anywhere you like.</p>
                     <div className="row">
                       <button type="button" onClick={stay}>I'd stay here</button>
@@ -605,7 +665,7 @@ export default function Flow({ mode, id }) {
                     <div className="qdots">
                       {myQs.map((_, i) => <span key={i} className={i <= qi ? 'on' : ''} />)}
                     </div>
-                    <p className="q">{myQs[qi]}</p>
+                    <p className="q">{renderQ(myQs[qi])}</p>
                     {!isSession && <textarea rows={3} aria-label="Your notes (only on this device)" placeholder="Jot it down. Only you can see this." value={notes[qi] || ''} onChange={(e) => note(qi, e.target.value)} />}
                     <div className="row">
                       {qi > 0 && <button type="button" className="quiet" onClick={() => setQi(qi - 1)}>Back</button>}
@@ -626,7 +686,7 @@ export default function Flow({ mode, id }) {
                   {!isSession && <button type="button" className="endcard" onClick={restart}><strong>Write another</strong>Same question, new story.</button>}
                   <a className="endcard" href="/"><strong>Try a different decision</strong>Four more cards are waiting.</a>
                 </div>
-                <p className="note" style={{ marginTop: 4 }}>Facing this decision as a team? <a className="textlink" href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map">Run it in a workshop →</a></p>
+                <p className="note workshop-note" style={{ marginTop: 4 }}>Facing this decision as a team? <a className="textlink" href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map">Run it in a workshop →</a></p>
                 {!isSession && (
                   <div className="reading-panel">
                     {readingStage === 'idle' && (
