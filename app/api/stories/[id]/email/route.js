@@ -152,15 +152,16 @@ ${buildReadingHtml(story.reading && story.reading.raw)}
 </td></tr>
 
 <tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da;">
-  <p style="font-size:14px;color:#8a9098;margin:0;">Facing this decision as a team? <a href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map" style="color:#79998b;text-decoration:none;">Run it in a workshop →</a></p>
+  <a href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map" style="display:inline-block;padding:11px 24px;background:transparent;color:#3a4a40;text-decoration:none;font-size:14px;font-family:Arial,sans-serif;font-weight:600;border-radius:8px;border:1.5px solid #79998b;letter-spacing:0.01em;">Facing this decision as a team? Run it in a workshop →</a>
 </td></tr>
 
-<tr><td style="padding:20px 0;border-bottom:1px solid #e8e4da;">
-  <p style="font-size:14px;color:#5a6068;margin:0;">Learn how to apply your story: <a href="https://fictioneering-newsletter.themohammadkhan.com/subscribe?utm_source=story-map-email" style="color:#5a6068;text-decoration:underline;">subscribe to Fictioneering →</a></p>
+<tr><td style="padding:24px 0;border-bottom:1px solid #e8e4da;">
+  <a href="https://fictioneering-newsletter.themohammadkhan.com/subscribe?utm_source=story-map-email" style="display:inline-block;padding:11px 24px;background:transparent;color:#3a4a40;text-decoration:none;font-size:14px;font-family:Arial,sans-serif;font-weight:600;border-radius:8px;border:1.5px solid #8d9d9d;letter-spacing:0.01em;">Subscribe to Fictioneering →</a>
+  <p style="font-size:12px;color:#8a9098;margin:8px 0 0;font-family:Arial,sans-serif;">Weekly essays on using fiction to make real decisions.</p>
 </td></tr>
 
 <tr><td style="padding:28px 0 0;">
-  <p style="font-size:12px;color:#8a9098;margin:0;">Story Map by Mohammad Khan &middot; <a href="https://story-map.themohammadkhan.com" style="color:#a72f39;text-decoration:none;">story-map.themohammadkhan.com</a></p>
+  <p style="font-size:12px;color:#8a9098;margin:0;font-family:Arial,sans-serif;">Story Map by Mohammad Khan &middot; <a href="https://story-map.themohammadkhan.com" style="color:#a72f39;text-decoration:none;">story-map.themohammadkhan.com</a></p>
 </td></tr>
 
 </table>
