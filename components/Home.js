@@ -36,8 +36,7 @@ export default function Home() {
   function next() { setSet((set + 1) % sets.length); setDeal(deal + 1); }
 
   const cur = sets[set];
-  const suitIdx = cur ? Math.max(0, SETS.findIndex((s) => s.label === cur.label)) : 0;
-  const suit = SUITS[suitIdx] ?? SUITS[0];
+  const suit = (cur && SUITS[cur.label]) ?? SUITS['At work'];
   return (
     <main>
       <BrandBar />
