@@ -83,19 +83,31 @@ textarea { resize: vertical; }
 
 .deck { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; max-width: 1080px; margin: 0 auto; }
 @media (max-width: 900px) { .deck { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } }
+@media (max-width: 380px) { .deck { grid-template-columns: minmax(0, 1fr); } }
 .deck > div { display: flex; }
-.pcard { display: flex; flex-direction: column; gap: 10px; width: 100%; text-align: left; background: var(--ink-2); color: var(--paper); border: 1px solid var(--frame); border-radius: 14px; padding: 20px 18px 16px; font: inherit; cursor: pointer; animation: dealIn .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms); transition: border-color .2s, transform .2s; }
-.pcard:hover:not(:disabled) { border-color: var(--sage); transform: translateY(-6px); }
+.pcard { display: flex; flex-direction: column; gap: 10px; width: 100%; text-align: left; background: var(--face, #f7eec3); color: var(--text, #0c1012); border: 1px solid var(--edge, #b9b292); border-radius: 14px; padding: 28px 18px 24px; font: inherit; cursor: pointer; position: relative; transform: rotate(var(--tilt, 0deg)); animation: dealIn .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms); transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
+.pcard::before { content: ''; position: absolute; inset: 6px; border-radius: 9px; border: 1px solid var(--edge, #b9b292); pointer-events: none; opacity: .4; }
+.deck > div:nth-child(1) .pcard { --tilt: -1.5deg; }
+.deck > div:nth-child(2) .pcard { --tilt: 1deg; }
+.deck > div:nth-child(3) .pcard { --tilt: -0.5deg; }
+.deck > div:nth-child(4) .pcard { --tilt: 1.5deg; }
+.pcard:hover:not(:disabled), .pcard:focus-visible { transform: rotate(0deg) translateY(-6px); box-shadow: 0 12px 32px rgba(12,16,18,.45); }
+.pcard:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
+.pcard-corner { position: absolute; display: flex; align-items: center; gap: 3px; font: 600 11px var(--labelf); letter-spacing: .04em; color: var(--text, #0c1012); opacity: .72; pointer-events: none; }
+.pcard-corner-tl { top: 10px; left: 12px; }
+.pcard-corner-br { bottom: 10px; right: 12px; transform: rotate(180deg); }
+.pcard-corner-pip { display: inline-block; width: 5px; height: 5px; background: #a72f39; transform: rotate(45deg); flex-shrink: 0; }
 .pcard-art { display: block; width: 64px; height: 64px; }
 .pcard-art svg { width: 100%; height: 100%; display: block; }
-.pcard-q { font: 400 21px/1.22 var(--title); text-wrap: balance; }
-.pcard-why { font-size: 14px; line-height: 1.45; color: var(--note); flex: 1; }
-.pcard-meta { font: 600 10px var(--labelf); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
-@media (max-width: 520px) { .pcard { padding: 16px 14px 14px; } .pcard-q { font-size: 18px; } .pcard-why { font-size: 13px; } .pcard-art { width: 48px; height: 48px; } }
-.pcard.chosen { animation: liftOut .4s ease forwards; border-color: var(--paper); }
+.pcard-q { font: 400 21px/1.22 var(--title); text-wrap: balance; color: var(--text, #0c1012); }
+.pcard-why { display: none; }
+.pcard-meta { font: 600 12px var(--labelf); letter-spacing: .14em; text-transform: uppercase; color: var(--text, #0c1012); opacity: .7; margin-top: 4px; }
+.pcard.chosen { animation: flipOut .38s ease forwards; }
 .deck.leaving .pcard:not(.chosen) { opacity: .25; transition: opacity .3s; }
-@keyframes dealIn { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
-@keyframes liftOut { to { transform: translateY(-10px); } }
+@keyframes dealIn { from { opacity: 0; transform: translateY(22px) rotate(var(--tilt, 0deg)); } to { opacity: 1; transform: rotate(var(--tilt, 0deg)); } }
+@keyframes flipOut { to { transform: perspective(600px) rotateY(180deg); } }
+@media (max-width: 900px) { .deck > div:nth-child(1) .pcard { --tilt: -0.75deg; } .deck > div:nth-child(2) .pcard { --tilt: 0.5deg; } .deck > div:nth-child(3) .pcard { --tilt: -0.25deg; } .deck > div:nth-child(4) .pcard { --tilt: 0.75deg; } }
+@media (max-width: 600px) { .pcard { padding: 24px 14px 20px; } .pcard-q { font-size: 18px; } .pcard-art { width: 48px; height: 48px; } }
 .deck-actions { display: flex; justify-content: center; gap: 22px; margin: 30px 0 0; flex-wrap: wrap; }
 .set-dots { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
 .set-dots span { width: 22px; height: 3px; background: var(--frame); border-radius: 2px; }
@@ -319,6 +331,7 @@ footer.foot a { color: var(--label); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  .deck > div .pcard { --tilt: 0deg; transform: none !important; }
 }
 
 /* ---------- mobile helpers (default: hidden until breakpoint) ---------- */

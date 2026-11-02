@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { SETS, artSvg, decision } from '@/lib/cards';
+import { SETS, SUITS, artSvg, decision } from '@/lib/cards';
 import BrandBar from './BrandBar';
 
 /* Four cards at a time. Click a card, the exercise starts. */
@@ -36,6 +36,8 @@ export default function Home() {
   function next() { setSet((set + 1) % sets.length); setDeal(deal + 1); }
 
   const cur = sets[set];
+  const suitIdx = cur ? Math.max(0, SETS.findIndex((s) => s.label === cur.label)) : 0;
+  const suit = SUITS[suitIdx] ?? SUITS[0];
   return (
     <main>
       <BrandBar />
@@ -55,9 +57,17 @@ export default function Home() {
           <div className={'deck' + (chosen ? ' leaving' : '')} key={deal} role="list" aria-label={cur.label}>
             {cur.cards.map((p, i) => (
               <div role="listitem" key={p.slug}>
-                <button type="button" className={'pcard' + (chosen === p.slug ? ' chosen' : '')} style={{ '--i': i }}
-                  onClick={() => pick(p)} disabled={!!chosen}>
-                  <span className="pcard-art" dangerouslySetInnerHTML={{ __html: artSvg(p.slug) }} />
+                <button
+                  type="button"
+                  title={decision(p.slug, p.title).why}
+                  className={'pcard' + (chosen === p.slug ? ' chosen' : '')}
+                  style={{ '--i': i, '--face': suit.face, '--art': suit.art, '--text': suit.text, '--edge': suit.edge }}
+                  onClick={() => pick(p)}
+                  disabled={!!chosen}
+                >
+                  <span className="pcard-corner pcard-corner-tl" aria-hidden="true">{suit.initial}<span className="pcard-corner-pip" /></span>
+                  <span className="pcard-corner pcard-corner-br" aria-hidden="true">{suit.initial}<span className="pcard-corner-pip" /></span>
+                  <span className="pcard-art" dangerouslySetInnerHTML={{ __html: artSvg(p.slug, true) }} />
                   <span className="pcard-q">{decision(p.slug, p.title).q}</span>
                   <span className="pcard-why">{decision(p.slug, p.title).why}</span>
                   <span className="pcard-meta">{p.n === 0 ? 'Be the first' : `${p.n} ${p.n === 1 ? 'story' : 'stories'} so far`}</span>
