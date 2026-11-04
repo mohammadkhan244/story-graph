@@ -11,11 +11,22 @@ const unpx = (v) => ((v - M) / (W - 2 * M)) * 10 - 5;
 const unpy = (v) => ((H - M - v) / (H - 2 * M)) * 10 - 5;
 const r1 = (v) => Math.max(-5, Math.min(5, Math.round(v * 10) / 10));
 const short = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
-function labelLines(label, maxChars = 14) {
-  if (label.length <= maxChars) return [label];
-  const sp = label.lastIndexOf(' ', maxChars);
-  if (sp < 1) return [short(label, maxChars + 1)];
-  return [label.slice(0, sp), short(label.slice(sp + 1), maxChars + 1)];
+// Word-wrap text into lines of at most maxChars — no truncation, all text shows.
+function wrapSvg(text, maxChars = 28) {
+  if (!text) return [];
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (test.length > maxChars && line) { lines.push(line); line = word; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function labelLines(label, maxChars = 15) {
+  return wrapSvg(label, maxChars);
 }
 export const fmt = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(Number(n) || 0).toFixed(1);
 
@@ -72,7 +83,6 @@ export default function StoryMap({
   const [tooltipPole, setTooltipPole] = useState(null);
   const [svgWidth, setSvgWidth] = useState(W);
   const [tapLabel, setTapLabel] = useState(null);   // mobile: id of dot whose name is showing
-  const [expandPole, setExpandPole] = useState(null); // mobile: id of pole showing full text
   const ax = (axes && axes.x) || {}, ay = (axes && axes.y) || {};
   const isMobile = svgWidth < 640;
 
@@ -177,22 +187,12 @@ export default function StoryMap({
     }
   }
 
-  // Mobile: render a pole label span with tap-to-expand for long text
+  // Mobile: render a pole label span — full text, CSS handles wrapping
   function mPole(id, arrow, text, align) {
     if (!text) return null;
-    const expanded = expandPole === id;
-    const tooLong = text.length > 18;
     return (
-      <span
-        key={id}
-        className="map-pole-label"
-        style={{ textAlign: align || 'left', cursor: tooLong ? 'pointer' : 'default' }}
-        role={tooLong ? 'button' : undefined}
-        aria-label={text}
-        onClick={tooLong ? (e) => { e.stopPropagation(); setExpandPole(expanded ? null : id); } : undefined}
-      >
-        {arrow} {expanded ? text : short(text, 18)}
-        {tooLong && !expanded && <span style={{ color: 'var(--muted)', fontSize: '0.85em' }}> tap</span>}
+      <span key={id} className="map-pole-label" style={{ textAlign: align || 'left' }} aria-label={text}>
+        {arrow} {text}
       </span>
     );
   }
@@ -226,28 +226,76 @@ export default function StoryMap({
         <line className="axis" x1={M} y1={py(0)} x2={W - M} y2={py(0)} />
 
         {/* Quad corner names — desktop only; mobile shows them in the legend below */}
-        {!isMobile && quads && (
-          <>
-            <text className="qlab" x={M + 12} y={H - M - 12} style={{ fontSize: fs(15) }}>{short(quads.ll, 30)}</text>
-            <text className="qlab" x={W - M - 12} y={H - M - 12} textAnchor="end" style={{ fontSize: fs(15) }}>{short(quads.hl, 30)}</text>
-            <text className="qlab" x={M + 12} y={M + 24} style={{ fontSize: fs(15) }}>{short(quads.lh, 30)}</text>
-            <text className="qlab" x={W - M - 12} y={M + 24} textAnchor="end" style={{ fontSize: fs(15) }}>{short(quads.hh, 30)}</text>
-          </>
-        )}
+        {!isMobile && quads && (() => {
+          const lh = fs(14) * 1.2;
+          return (
+            <>
+              <text className="qlab" x={M + 10} textAnchor="start" style={{ fontSize: fs(14) }}>
+                {wrapSvg(quads.lh || '', 22).map((ln, k) => <tspan key={k} x={M + 10} dy={k === 0 ? M + 16 : lh}>{ln}</tspan>)}
+              </text>
+              <text className="qlab" x={W - M - 10} textAnchor="end" style={{ fontSize: fs(14) }}>
+                {wrapSvg(quads.hh || '', 22).map((ln, k) => <tspan key={k} x={W - M - 10} dy={k === 0 ? M + 16 : lh}>{ln}</tspan>)}
+              </text>
+              {(() => {
+                const llLines = wrapSvg(quads.ll || '', 22);
+                const hlLines = wrapSvg(quads.hl || '', 22);
+                const maxBotLines = Math.max(llLines.length, hlLines.length);
+                const botStartY = H - M - 12 - (maxBotLines - 1) * lh;
+                return (
+                  <>
+                    <text className="qlab" x={M + 10} textAnchor="start" style={{ fontSize: fs(14) }}>
+                      {llLines.map((ln, k) => <tspan key={k} x={M + 10} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
+                    </text>
+                    <text className="qlab" x={W - M - 10} textAnchor="end" style={{ fontSize: fs(14) }}>
+                      {hlLines.map((ln, k) => <tspan key={k} x={W - M - 10} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
+                    </text>
+                  </>
+                );
+              })()}
+            </>
+          );
+        })()}
 
         {/* Axis labels — desktop only; mobile shows them as HTML below */}
-        {!isMobile && (
-          <>
-            {/* X axis — below frame */}
-            <text className="pole" x={M} y={H - M + 24} style={{ fontSize: fs(13) }} {...poleProps('xlow', ax.low, ax.lowDesc)}>← {short(ax.low || '', 28)}</text>
-            <text className="pole" x={W - M} y={H - M + 24} textAnchor="end" style={{ fontSize: fs(13) }} {...poleProps('xhigh', ax.high, ax.highDesc)}>{short(ax.high || '', 28)} →</text>
-            <text className="axname" x={W / 2} y={H - 18} textAnchor="middle" style={{ fontSize: fs(13) }}>{ax.name || ''}</text>
-            {/* Y axis — name top-left; poles left-aligned at the left edge of the plot */}
-            <text className="axname" x={M} y={M - 26} style={{ fontSize: fs(13) }}>{ay.name || ''}</text>
-            <text className="pole" x={M + 8} y={M + 42} textAnchor="start" style={{ fontSize: fs(13) }} {...poleProps('yhigh', ay.high, ay.highDesc)}>↑ {short(ay.high || '', 22)}</text>
-            <text className="pole" x={M + 8} y={H - M - 25} textAnchor="start" style={{ fontSize: fs(13) }} {...poleProps('ylow', ay.low, ay.lowDesc)}>↓ {short(ay.low || '', 22)}</text>
-          </>
-        )}
+        {!isMobile && (() => {
+          const lowLines = wrapSvg(`← ${ax.low || ''}`, 30);
+          const highLines = wrapSvg(`${ax.high || ''} →`, 30);
+          const lh = fs(13) * 1.3; // line-height between wrapped x-axis lines
+          const poleLines = Math.max(lowLines.length, highLines.length);
+          const poleY = H - M + 18;
+          const nameY = poleY + (poleLines - 1) * lh + 20;
+          return (
+            <>
+              {/* X axis — horizontal below frame, wrapping */}
+              <text className="pole" x={M} y={poleY} style={{ fontSize: fs(13) }} {...poleProps('xlow', ax.low, ax.lowDesc)}>
+                {lowLines.map((ln, k) => <tspan key={k} x={M} dy={k === 0 ? 0 : lh}>{ln}</tspan>)}
+              </text>
+              <text className="pole" x={W - M} y={poleY} textAnchor="end" style={{ fontSize: fs(13) }} {...poleProps('xhigh', ax.high, ax.highDesc)}>
+                {highLines.map((ln, k) => <tspan key={k} x={W - M} dy={k === 0 ? 0 : lh}>{ln}</tspan>)}
+              </text>
+              <text className="axname" x={W / 2} y={nameY} textAnchor="middle" style={{ fontSize: fs(13) }}>{ax.name || ''}</text>
+
+              {/* Y axis — rotated sideways on the left; poles centred in their half */}
+              <text className="axname"
+                transform={`translate(16,${H / 2}) rotate(-90)`}
+                textAnchor="middle" style={{ fontSize: fs(13) }}>
+                {ay.name || ''}
+              </text>
+              <text className="pole"
+                transform={`translate(16,${(M + H / 2) / 2}) rotate(-90)`}
+                textAnchor="middle" style={{ fontSize: fs(13) }}
+                {...poleProps('yhigh', ay.high, ay.highDesc)}>
+                ↑ {ay.high || ''}
+              </text>
+              <text className="pole"
+                transform={`translate(16,${(H / 2 + H - M) / 2}) rotate(-90)`}
+                textAnchor="middle" style={{ fontSize: fs(13) }}
+                {...poleProps('ylow', ay.low, ay.lowDesc)}>
+                ↓ {ay.low || ''}
+              </text>
+            </>
+          );
+        })()}
 
         {/* Background dots */}
         {background.map((p) => <circle key={'bg' + p.id} className="bgdot" cx={px(p.x)} cy={py(p.y)} r={4} />)}
@@ -360,8 +408,8 @@ export default function StoryMap({
           const poles = {
             xlow:  ax.lowDesc  ? { label: ax.low,  desc: ax.lowDesc,  tx: M,      ty: H - M - 10 } : null,
             xhigh: ax.highDesc ? { label: ax.high, desc: ax.highDesc, tx: W - M,  ty: H - M - 10, end: true } : null,
-            ylow:  ay.lowDesc  ? { label: ay.low,  desc: ay.lowDesc,  tx: M + 8,  ty: H - M - 25 } : null,
-            yhigh: ay.highDesc ? { label: ay.high, desc: ay.highDesc, tx: M + 8,  ty: M + 42 } : null,
+            ylow:  ay.lowDesc  ? { label: ay.low,  desc: ay.lowDesc,  tx: M,  ty: (H / 2 + H - M) / 2 } : null,
+            yhigh: ay.highDesc ? { label: ay.high, desc: ay.highDesc, tx: M,  ty: (M + H / 2) / 2 } : null,
           };
           const tp = poles[tooltipPole];
           if (!tp) return null;
@@ -393,10 +441,10 @@ export default function StoryMap({
           </div>
           {quads && (
             <div className="map-quad-legend" role="list" aria-label="Quadrant names">
-              <div role="listitem">↖ {short(quads.lh || '', 22)}</div>
-              <div role="listitem" style={{ textAlign: 'right' }}>↗ {short(quads.hh || '', 22)}</div>
-              <div role="listitem">↙ {short(quads.ll || '', 22)}</div>
-              <div role="listitem" style={{ textAlign: 'right' }}>↘ {short(quads.hl || '', 22)}</div>
+              <div role="listitem">↖ {quads.lh}</div>
+              <div role="listitem" style={{ textAlign: 'right' }}>↗ {quads.hh}</div>
+              <div role="listitem">↙ {quads.ll}</div>
+              <div role="listitem" style={{ textAlign: 'right' }}>↘ {quads.hl}</div>
             </div>
           )}
         </div>

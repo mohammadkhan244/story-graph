@@ -263,12 +263,12 @@ svg.map.drawing { cursor: crosshair; touch-action: none; }
 .map-y-high { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px 4px; }
 .map-y-low { padding: 4px 2px 0; }
 .map-mobile-labels { padding: 2px 2px 0; display: flex; flex-direction: column; gap: 5px; }
-.map-pole-label { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); }
+.map-pole-label { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); white-space: normal; word-break: break-word; }
 .map-axname-badge { font: 600 10px var(--labelf); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .map-x-row { display: flex; align-items: center; gap: 4px; }
 .map-x-row .map-pole-label:last-child { margin-left: auto; text-align: right; }
 .map-axname-x { flex: 1; text-align: center; font: 600 11px var(--labelf); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.map-quad-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font: 400 11px var(--labelf); color: var(--sage-deep); letter-spacing: .02em; padding-top: 4px; border-top: 1px solid var(--frame); margin-top: 2px; }
+.map-quad-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font: 400 11px var(--labelf); color: var(--sage-deep); letter-spacing: .02em; padding-top: 4px; border-top: 1px solid var(--frame); margin-top: 2px; word-break: break-word; }
 
 /* questions list (admin + presenter) */
 .qs-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; list-style: decimal; }
