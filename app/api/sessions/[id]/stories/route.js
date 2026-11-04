@@ -7,7 +7,8 @@ import { readStory, invalid, saveAndPlace, sessionMap } from '@/lib/submit';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const GRACE_MS = 90 * 1000;
+const GRACE_DEFAULT_MS = 2 * 60 * 1000;
+const GRACE_STARTED_MS = 15 * 60 * 1000;
 
 export async function POST(req, { params }) {
   try {
@@ -18,7 +19,10 @@ export async function POST(req, { params }) {
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
     const s = (await q('select * from sessions where id=$1', [params.id]))[0];
     if (!s) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    const late = s.ends_at && Date.now() > new Date(s.ends_at).getTime() + GRACE_MS;
+    const isPaused = !!s.paused_at;
+    const startedBeforeEnd = typeof b.started_at === 'number' && s.ends_at && b.started_at < new Date(s.ends_at).getTime();
+    const grace = startedBeforeEnd ? GRACE_STARTED_MS : GRACE_DEFAULT_MS;
+    const late = !isPaused && s.ends_at && Date.now() > new Date(s.ends_at).getTime() + grace;
     if (s.status !== 'open' || late) return NextResponse.json({ error: 'This session is closed.' }, { status: 403 });
     const isTest = cookies().get('sm_test')?.value === '1' && isAdmin();
     const { story, token, warning } = await saveAndPlace(s, { ...st, isTest });

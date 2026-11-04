@@ -49,9 +49,24 @@ export async function PATCH(req, { params }) {
     if (b.start) {
       const mins = b.minutes != null ? Math.max(1, Math.min(120, parseInt(b.minutes, 10) || 10)) : s.minutes;
       put('status', 'open'); put('ends_at', new Date(Date.now() + mins * 60000).toISOString());
+      put('paused_at', null); put('remaining_seconds', null);
     }
-    if (b.open) { put('status', 'open'); put('ends_at', null); }
-    if (b.stop) { put('status', 'closed'); put('ends_at', new Date().toISOString()); }
+    if (b.open) { put('status', 'open'); put('ends_at', null); put('paused_at', null); put('remaining_seconds', null); }
+    if (b.stop) { put('status', 'closed'); put('ends_at', new Date().toISOString()); put('paused_at', null); put('remaining_seconds', null); }
+    if (b.pause && s.ends_at && !s.paused_at) {
+      const rem = Math.max(0, Math.floor((new Date(s.ends_at).getTime() - Date.now()) / 1000));
+      put('paused_at', new Date().toISOString()); put('remaining_seconds', rem);
+    }
+    if (b.resume && s.paused_at) {
+      const rem = s.remaining_seconds || 0;
+      put('ends_at', new Date(Date.now() + rem * 1000).toISOString());
+      put('paused_at', null); put('remaining_seconds', null);
+    }
+    if (b.restart) {
+      const mins = s.minutes || 10;
+      put('status', 'open'); put('ends_at', new Date(Date.now() + mins * 60000).toISOString());
+      put('paused_at', null); put('remaining_seconds', null);
+    }
     if (b.axes) {
       const x = cleanAxis(b.axes.x), y = cleanAxis(b.axes.y);
       if (x && y) put('axes', JSON.stringify({ x, y }));

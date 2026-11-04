@@ -100,7 +100,8 @@ export default function Presenter({ id }) {
   const s = d.session, map = d.map;
   const isSession = s.kind !== 'open';
   const endsAt = s.endsAt ? new Date(s.endsAt).getTime() : null;
-  const open = s.status === 'open' && (!endsAt || now < endsAt);
+  const paused = !!s.pausedAt;
+  const open = s.status === 'open' && (paused || !endsAt || now < endsAt);
   const placed = map.points.length;
   const pts = names ? map.points : map.points.map((p, i) => ({ ...p, label: `Story ${i + 1}` }));
 
@@ -158,12 +159,25 @@ export default function Presenter({ id }) {
             <div className="panel stack">
               <span className="kicker">Writing</span>
               <div className="row" style={{ justifyContent: 'space-between' }}>
-                <span className="timer">{open ? (endsAt ? mmss(endsAt - now) : 'Open') : 'Closed'}</span>
+                <span className="timer">
+                  {paused
+                    ? `⏸ ${mmss((s.remainingSeconds || 0) * 1000)}`
+                    : open ? (endsAt ? mmss(endsAt - now) : 'Open') : 'Closed'}
+                </span>
                 <span className="note">{d.total} written · {placed} on the map</span>
               </div>
               <div className="row">
                 <input type="number" min={1} max={60} value={mins} onChange={(e) => setMins(e.target.value)} style={{ width: 80 }} aria-label="Minutes" />
                 <button type="button" onClick={() => patch({ start: true, minutes: mins })}>Start {mins}-min timer</button>
+                {open && endsAt && !paused && (
+                  <button type="button" className="quiet" onClick={() => patch({ pause: true })}>Pause</button>
+                )}
+                {paused && (
+                  <button type="button" onClick={() => patch({ resume: true })}>Resume</button>
+                )}
+                {endsAt && (
+                  <button type="button" className="quiet" onClick={() => patch({ restart: true })}>Restart</button>
+                )}
                 <button type="button" className="quiet" disabled={!open} onClick={() => patch({ stop: true })}>Close</button>
               </div>
               <label className="check"><input type="checkbox" checked={!!s.published} onChange={(e) => patch({ published: e.target.checked })} /> Show the map on everyone's phone</label>

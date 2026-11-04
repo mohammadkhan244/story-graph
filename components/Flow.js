@@ -154,9 +154,14 @@ export default function Flow({ mode, id }) {
   const [myQsData, setMyQsData] = useState(null); // null = use template
   const [myQsLoading, setMyQsLoading] = useState(false);
   const [showMap, setShowMap] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [timerBanner, setTimerBanner] = useState('');
   const recRef = useRef(null);
   const taRef = useRef(null);
   const mapRef = useRef(null);
+  const bannerTimer = useRef(null);
+  const lastEndsAt = useRef(undefined);
+  const lastPausedAt = useRef(undefined);
   const readingKey = `sm-reading-${mode}-${id}`;
   const questionsKey = `sm-questions-${mode}-${id}`;
 
@@ -205,25 +210,46 @@ export default function Flow({ mode, id }) {
     return () => clearTimeout(t);
   }, [context, signal, text, startedAt, stage, mine]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* sessions: wait for the host to open writing, or to share the map */
+  function showBanner(text) {
+    if (!text) return;
+    setTimerBanner(text);
+    clearTimeout(bannerTimer.current);
+    bannerTimer.current = setTimeout(() => setTimerBanner(''), 3000);
+  }
+
+  /* sessions: wait for open/map (closed/waiting) and sync timer state (write) */
   useEffect(() => {
-    if (!isSession || !['closed', 'waiting'].includes(stage)) return;
+    if (!isSession || !['closed', 'waiting', 'write'].includes(stage)) return;
+    if (stage !== 'write') { lastEndsAt.current = undefined; lastPausedAt.current = undefined; }
     const t = setInterval(() => load().then((j) => {
-      if (stage === 'closed' && j.session.status === 'open') setStage(j.session.ask || (j.session.signals || []).length ? 'scene' : 'write');
+      const sess = j.session;
+      if (stage === 'closed' && sess.status === 'open') setStage(sess.ask || (sess.signals || []).length ? 'scene' : 'write');
       if (stage === 'waiting' && j.map) { setReveal(true); setStage('map'); }
-    }).catch(() => {}), 5000);
+      if (stage === 'write') {
+        if (lastEndsAt.current === undefined) {
+          lastEndsAt.current = sess.endsAt; lastPausedAt.current = sess.pausedAt;
+        } else {
+          const pe = lastEndsAt.current, pp = lastPausedAt.current;
+          const ne = sess.endsAt, np = sess.pausedAt;
+          if (!pe && ne) showBanner(`Timer started: ${mmss(new Date(ne).getTime() - Date.now())}`);
+          else if (!pp && np) showBanner(`Timer paused: ${mmss((sess.remainingSeconds || 0) * 1000)}`);
+          else if (pp && !np) showBanner('Timer resumed');
+          else if (pe && ne && pe !== ne && !np) { const r = new Date(ne).getTime() - Date.now(); if (r > 0) showBanner(`Timer restarted: ${mmss(r)}`); }
+          lastEndsAt.current = ne; lastPausedAt.current = np;
+        }
+      }
+    }).catch(() => {}), 2000);
     return () => clearInterval(t);
   }, [stage]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isPaused = isSession && !!(s && s.pausedAt);
   const sharedEnd = s && s.endsAt ? new Date(s.endsAt).getTime() : null;
   const minutes = (s && s.minutes) || 10;
   const end = isSession && sharedEnd ? sharedEnd : startedAt ? startedAt + minutes * 60000 : null;
-  const left = end ? end - now : minutes * 60000;
-  const over = end ? left <= 0 : false;
-
-  useEffect(() => {
-    if (isSession && stage === 'write' && sharedEnd && over && text.trim().length >= 20) setStage('name');
-  }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
+  const left = isPaused
+    ? (s.remainingSeconds != null ? s.remainingSeconds * 1000 : end ? Math.max(0, end - now) : minutes * 60000)
+    : (end ? end - now : minutes * 60000);
+  const over = !isPaused && (end ? left <= 0 : false);
 
   function startWriting() {
     if (!startedAt) setStartedAt(Date.now());
@@ -247,11 +273,11 @@ export default function Flow({ mode, id }) {
   }
 
   async function submit() {
-    setStage('placing'); setMsg('');
+    setSubmitting(true); setStage('placing'); setMsg('');
     try {
       const r = await fetch(`${base}/stories`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, headline, name, shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp }),
+        body: JSON.stringify({ text, headline, name, shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp, started_at: startedAt }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Could not save your story.');
@@ -261,6 +287,7 @@ export default function Flow({ mode, id }) {
       if (j.map) { setMap(j.map); setReveal(true); setTimeout(() => setStage('map'), 900); }
       else setStage('waiting');
     } catch (e) { setMsg(String(e.message || e)); setStage('name'); }
+    finally { setSubmitting(false); }
   }
 
   async function saveArrow(body) {
@@ -431,7 +458,7 @@ export default function Flow({ mode, id }) {
       {stage === 'closed' && (
         <section className="stage center" style={{ gap: 18, paddingTop: 40 }}>
           <div className="icon-badge" dangerouslySetInnerHTML={{ __html: artSvg(slug) }} />
-          <h3>{dec.q}</h3>
+          <h3>{s.bigQuestion || dec.q}</h3>
           <p className="sub">Writing hasn't started yet. This page opens by itself when it does.</p>
         </section>
       )}
@@ -440,8 +467,8 @@ export default function Flow({ mode, id }) {
         <section className="stage">
           <div className="stage-head">
             <div className="icon-badge" dangerouslySetInnerHTML={{ __html: artSvg(slug) }} />
-            <h3>{dec.q}</h3>
-            {dec.why && <p className="sub">{dec.why}</p>}
+            <h3>{s.bigQuestion || dec.q}</h3>
+            {!s.bigQuestion && dec.why && <p className="sub">{dec.why}</p>}
           </div>
           {resumeMode ? (
             <div className="stack" style={{ maxWidth: 480, margin: '0 auto', gap: 14 }}>
@@ -508,6 +535,7 @@ export default function Flow({ mode, id }) {
             </div>
           )}
           <div className="rules"><span>Don't plan it</span><span>Don't make it good</span><span>Anything is valid</span><span>Keep going</span></div>
+          {timerBanner && <div className="timer-banner" role="status" aria-live="polite">{timerBanner}</div>}
           {!startedAt && !(isSession && sharedEnd) ? (
             <div className="center" style={{ marginTop: 26, gap: 14 }}>
               <button className="big primary" type="button" onClick={startWriting}>Start my {minutes} minutes</button>
@@ -516,7 +544,7 @@ export default function Flow({ mode, id }) {
           ) : (
             <>
               <div className="writebar">
-                <span className={'timer' + (end && left < 60000 ? ' low' : '')} aria-live="off">{over ? '00:00' : mmss(left)}</span>
+                <span className={'timer' + (!isPaused && end && left < 60000 ? ' low' : '') + (isPaused ? ' paused' : '')} aria-live="off">{isPaused ? '⏸ ' + mmss(left) : over ? '00:00' : mmss(left)}</span>
                 <span className="row">
                   <span className="note">{words} words</span>
                   <button type="button" className={'quiet mic' + (listening ? ' live' : '')} onClick={toggleMic}>{listening ? 'Listening… tap to stop' : 'Speak 🎙'}</button>
@@ -558,8 +586,8 @@ export default function Flow({ mode, id }) {
             <label className="check"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Let others read my full story on the map (your name shows only if you add one)</label>
             <div className="hp" aria-hidden="true"><input tabIndex={-1} autoComplete="off" value={hp} onChange={(e) => setHp(e.target.value)} /></div>
             <div className="center" style={{ gap: 10, marginTop: 8 }}>
-              <button className="big primary" type="submit">Place my story on the map</button>
-              <button type="button" className="textlink" onClick={() => setStage('write')}>Back to my story</button>
+              <button className="big primary" type="submit" disabled={submitting}>{submitting ? 'Placing your story…' : 'Place my story on the map'}</button>
+              <button type="button" className="textlink" disabled={submitting} onClick={() => setStage('write')}>Back to my story</button>
             </div>
             {msg && <p className="warn center">{msg}</p>}
           </form>
@@ -572,7 +600,7 @@ export default function Flow({ mode, id }) {
             {[34, 54, 74, 88].map((r, i) => <ellipse key={i} cx="90" cy="90" rx={r} ry={r * 0.55} fill="none" stroke={i % 2 ? '#79998b' : '#afbeb1'} strokeWidth="1.5" />)}
             <circle cx="90" cy="90" r="8" fill="#a72f39" />
           </svg>
-          <h3>Reading your story…</h3>
+          <h3>Placing your story…</h3>
           <LoadingBar stages={PLACING_STAGES} />
         </section>
       )}
