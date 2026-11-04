@@ -683,6 +683,11 @@ export default function Flow({ mode, id }) {
               </div>
             )}
             {stage === 'map' && me && me.x == null && <p className="sub">Your story is saved but not placed yet. {msg}</p>}
+            {stage === 'map' && s && s.kind === 'visitor' && (
+              <p className="note" style={{ borderTop: '1px solid var(--frame)', paddingTop: 10, marginTop: 2 }}>
+                Your own map. When others bring this decision, they'll appear here.
+              </p>
+            )}
 
             {stage === 'think' && (myQsLoading || myQs.length > 0) && (
               <div className="qcard" key={myQsLoading ? 'loading' : qi}>

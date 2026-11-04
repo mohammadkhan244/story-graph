@@ -48,6 +48,8 @@ export default function Presenter({ id }) {
   const [names, setNames] = useState(true);
   const [arrows, setArrows] = useState(true);
   const [earlier, setEarlier] = useState(true);
+  const [showTestStories, setShowTestStories] = useState(false);
+  const [testPts, setTestPts] = useState([]);
   const [qi, setQi] = useState(0);
   const [sel, setSel] = useState(null);
   const [drawFor, setDrawFor] = useState(null);
@@ -65,6 +67,20 @@ export default function Presenter({ id }) {
     try { setD(await api(`/api/admin/sessions/${id}/present`)); }
     catch (e) { if (e.status === 401) setAuth({ admin: false }); else setMsg(e.message); }
   }
+  async function loadTestPts() {
+    try {
+      const j = await api(`/api/admin/sessions/${id}`);
+      const pts = (j.stories || [])
+        .filter((x) => x.is_test && x.x != null)
+        .map((x) => ({
+          id: x.id, label: (x.name || '').trim() || 'Test',
+          x: x.x, y: x.y, signal: x.signal, isTest: true,
+          arrow: x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null,
+          stays: !!x.stays,
+        }));
+      setTestPts(pts);
+    } catch {}
+  }
   useEffect(() => {
     api('/api/admin/login').then(setAuth).catch(() => setAuth({ admin: false }));
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -73,7 +89,8 @@ export default function Presenter({ id }) {
   useEffect(() => {
     if (!auth || !auth.admin) return;
     load();
-    const t = setInterval(() => { if (!document.hidden && !drawFor) load(); }, 3000);
+    loadTestPts();
+    const t = setInterval(() => { if (!document.hidden && !drawFor) { load(); loadTestPts(); } }, 3000);
     return () => clearInterval(t);
   }, [auth, drawFor]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -103,7 +120,8 @@ export default function Presenter({ id }) {
   const paused = !!s.pausedAt;
   const open = s.status === 'open' && (paused || !endsAt || now < endsAt);
   const placed = map.points.length;
-  const pts = names ? map.points : map.points.map((p, i) => ({ ...p, label: `Story ${i + 1}` }));
+  const basePts = showTestStories ? [...map.points, ...testPts] : map.points;
+  const pts = names ? basePts : basePts.map((p, i) => ({ ...p, label: p.isTest ? 'TEST' : `Story ${i + 1}` }));
 
   async function patch(body) { try { await api(`/api/admin/sessions/${id}`, 'PATCH', body); await load(); } catch (e) { setMsg(e.message); } }
   async function drawArrow(pid, xy) {
@@ -121,8 +139,9 @@ export default function Presenter({ id }) {
             <h3>{s.title}</h3>
             <div className="toggles">
               <button type="button" className="quiet" aria-pressed={names} onClick={() => setNames(!names)}>Names</button>
-              <button type="button" className="quiet" aria-pressed={arrows} onClick={() => setArrows(!arrows)}>Arrows</button>
+              <button type="button" className="quiet" aria-pressed={arrows} onClick={() => setArrows(!arrows)}>Show arrows live</button>
               {map.background && map.background.length > 0 && <button type="button" className="quiet" aria-pressed={earlier} onClick={() => setEarlier(!earlier)}>Earlier groups</button>}
+              <button type="button" className="quiet" aria-pressed={showTestStories} onClick={() => setShowTestStories(!showTestStories)}>Include my test stories</button>
             </div>
           </div>
           <div className="mapwrap">

@@ -10,6 +10,12 @@ export default function Home() {
   const [set, setSet] = useState(0);
   const [deal, setDeal] = useState(0);
   const [chosen, setChosen] = useState(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customText, setCustomText] = useState('');
+  const [customHp, setCustomHp] = useState('');
+  const [customLoading, setCustomLoading] = useState(false);
+  const [customResult, setCustomResult] = useState(null); // { card:true, slug, question } | null
+  const [customErr, setCustomErr] = useState('');
 
   useEffect(() => {
     fetch('/api/public', { cache: 'no-store' })
@@ -34,6 +40,23 @@ export default function Home() {
     setTimeout(() => { window.location.href = `/p/${p.slug}`; }, 380);
   }
   function next() { setSet((set + 1) % sets.length); setDeal(deal + 1); }
+
+  async function handleCustom(e, force = false) {
+    if (e) e.preventDefault();
+    if (!customText.trim()) return;
+    setCustomLoading(true); setCustomErr(''); setCustomResult(null);
+    try {
+      const r = await fetch('/api/custom', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: customText.trim(), _hp: customHp, force }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setCustomErr(j.error || 'Something went wrong. Try again.'); return; }
+      if (j.card) { setCustomResult(j); return; }
+      if (j.id) { window.location.href = `/s/${j.id}`; }
+    } catch { setCustomErr('Something went wrong. Try again.'); }
+    finally { setCustomLoading(false); }
+  }
 
   const cur = sets[set];
   const suit = (cur && SUITS[cur.label]) ?? SUITS['At work'];
@@ -83,6 +106,48 @@ export default function Home() {
             </>
           )}
         </>
+      )}
+      {/* "My decision isn't here" — inline custom decision entry */}
+      {cur && !customOpen && (
+        <p style={{ textAlign: 'center', marginTop: 20 }}>
+          <button type="button" className="textlink" onClick={() => { setCustomOpen(true); setCustomResult(null); setCustomErr(''); }}>
+            My decision isn't here →
+          </button>
+        </p>
+      )}
+      {customOpen && (
+        <div style={{ maxWidth: 560, margin: '24px auto 0' }}>
+          <form className="ask" onSubmit={(e) => handleCustom(e, false)}>
+            <label htmlFor="custom-text">Describe your decision in one line</label>
+            <input
+              id="custom-text" autoFocus value={customText} maxLength={140}
+              onChange={(e) => setCustomText(e.target.value)}
+              placeholder="e.g. Should I move to a bigger city?"
+            />
+            <div className="hp" aria-hidden="true">
+              <input tabIndex={-1} autoComplete="off" value={customHp} onChange={(e) => setCustomHp(e.target.value)} />
+            </div>
+            {customResult && customResult.card ? (
+              <div className="stack" style={{ background: 'var(--ink-2)', border: '1px solid var(--frame)', borderRadius: 10, padding: 16, gap: 10 }}>
+                <p className="sub">This sounds like: <em style={{ color: 'var(--paper)', fontStyle: 'normal' }}>{customResult.question}</em> Write on that map?</p>
+                <div className="row">
+                  <button type="button" className="primary" onClick={() => { window.location.href = `/p/${customResult.slug}`; }}>Yes, use it</button>
+                  <button type="button" className="quiet" onClick={() => { setCustomLoading(true); setCustomResult(null); handleCustom(null, true); }}>No, mine is different</button>
+                </div>
+              </div>
+            ) : (
+              <div className="center">
+                <button className="big primary" type="submit" disabled={!customText.trim() || customLoading}>
+                  {customLoading ? 'Finding your map…' : 'Continue →'}
+                </button>
+              </div>
+            )}
+            {customErr && <p className="warn center">{customErr}</p>}
+          </form>
+          <p style={{ textAlign: 'center', marginTop: 10 }}>
+            <button type="button" className="textlink" style={{ fontSize: 13 }} onClick={() => { setCustomOpen(false); setCustomResult(null); setCustomErr(''); }}>← Back to cards</button>
+          </p>
+        </div>
       )}
       {data && data.past.length > 0 && (
         <footer className="foot">

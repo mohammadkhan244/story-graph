@@ -181,8 +181,8 @@ svg.map.drawing { cursor: crosshair; touch-action: none; }
 .map .frame { fill: none; stroke: var(--frame); stroke-width: 1.5; }
 .map .axis { stroke: var(--sage-deep); stroke-width: 1.2; }
 .map .qlab { font: 400 15px var(--title); fill: var(--sage-deep); }
-.map .pole { font: 600 10.5px var(--labelf); letter-spacing: .06em; fill: var(--note); }
-.map .axname { font: 600 11px var(--labelf); letter-spacing: .14em; text-transform: uppercase; fill: var(--muted); }
+.map .pole { font: 600 13px var(--labelf); letter-spacing: .06em; fill: var(--note); }
+.map .axname { font: 600 13px var(--labelf); letter-spacing: .14em; text-transform: uppercase; fill: var(--muted); }
 .map .bgdot { fill: var(--frame); }
 .map .dot { cursor: pointer; }
 .map .dot.drag { cursor: grab; }

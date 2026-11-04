@@ -26,7 +26,7 @@ export async function POST(req, { params }) {
     if (s.status !== 'open' || late) return NextResponse.json({ error: 'This session is closed.' }, { status: 403 });
     const isTest = cookies().get('sm_test')?.value === '1' && isAdmin();
     const { story, token, warning } = await saveAndPlace(s, { ...st, isTest });
-    const map = s.is_default || s.published ? await sessionMap(s, false) : null;
+    const map = s.is_default || s.published || s.kind === 'visitor' ? await sessionMap(s, false) : null;
     return NextResponse.json({ story, token, map, warning });
   } catch (e) { return fail(e); }
 }

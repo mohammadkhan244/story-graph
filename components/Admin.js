@@ -88,6 +88,9 @@ export default function Admin() {
   const [wiQsData, setWiQsData] = useState(null);
   const [wiQsLoading, setWiQsLoading] = useState(false);
   const [testMode, setTestMode] = useState(false);
+  const [showTestStories, setShowTestStories] = useState(false);
+  const [missingExpanded, setMissingExpanded] = useState(null); // id of expanded visitor session
+  const [makeCardForm, setMakeCardForm] = useState({}); // id -> { title, why, slug }
   const loadedFor = useRef(null);
 
   const say = (t, warn = false) => setStatus({ t, warn });
@@ -165,14 +168,16 @@ export default function Admin() {
   const axesOK = ['x', 'y'].every((k) => axes[k].name && axes[k].low && axes[k].high);
   const sameAxis = (a, b) => !!a && !!b && a.name === b.name && a.low === b.low && a.high === b.high;
   const axesDirty = !!s && axesOK && !(s.axes && sameAxis(s.axes.x, axes.x) && sameAxis(s.axes.y, axes.y));
-  const points = stories.map((x) => ({
+  const allPoints = stories.map((x) => ({
     id: x.id, label: (x.name || '').trim() || 'Anonymous', signal: x.signal,
     x: x.x, y: x.y,
     arrow: x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null,
     stays: !!x.stays,
     isTest: !!x.is_test,
   }));
+  const points = showTestStories ? allPoints : allPoints.filter((p) => !p.isTest);
   const { tags, color } = signalColors(points);
+  const visitorSessions = list.filter((x) => x.kind === 'visitor').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const dot = stories.find((x) => x.id === selDot);
 
   async function act(fn, label) {
@@ -207,7 +212,7 @@ export default function Admin() {
           <section className="panel">
             <h2>Prompts &amp; Sessions</h2>
             <ul className="list">
-              {list.map((x) => {
+              {list.filter((x) => x.kind !== 'visitor').map((x) => {
                 const tag = x.kind === 'open' && x.slug
                   ? `prompt${x.hidden ? ' · hidden' : ''} · ${x.n}`
                   : x.is_default ? `default · ${x.n}` : x.published ? `shared · ${x.n}` : `${x.status} · ${x.n}`;
@@ -403,18 +408,74 @@ export default function Admin() {
               }, 'Deleting')} />
             </section>
           )}
+          {visitorSessions.length > 0 && (
+            <section className="panel stack">
+              <h2>Missing cards ({visitorSessions.length})</h2>
+              <p className="note">Visitor decisions that didn't match a card. Promote one to make it available on the home page.</p>
+              <ul className="list">
+                {visitorSessions.map((vs) => {
+                  const f = makeCardForm[vs.id] || {};
+                  const isOpen = missingExpanded === vs.id;
+                  const autoSlug = (f.title || vs.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+                  return (
+                    <li key={vs.id}>
+                      <button className="item" onClick={() => setMissingExpanded(isOpen ? null : vs.id)} aria-expanded={isOpen}>
+                        <span style={{ color: 'var(--paper)' }}>{vs.title}</span>
+                        <span className="tag"> · {new Date(vs.created_at).toLocaleDateString()} · {vs.n} {vs.n === 1 ? 'story' : 'stories'}</span>
+                      </button>
+                      {isOpen && (
+                        <div className="stack" style={{ padding: '8px 0 12px', gap: 8 }}>
+                          <div>
+                            <label htmlFor={`mc-t-${vs.id}`}>Card title (the decision question)</label>
+                            <input id={`mc-t-${vs.id}`} value={f.title ?? vs.title} onChange={(e) => setMakeCardForm({ ...makeCardForm, [vs.id]: { ...f, title: e.target.value } })} />
+                          </div>
+                          <div>
+                            <label htmlFor={`mc-w-${vs.id}`}>Why line (shown on the card)</label>
+                            <input id={`mc-w-${vs.id}`} value={f.why ?? (vs.big_question || '')} placeholder="Who would pick this card and why" onChange={(e) => setMakeCardForm({ ...makeCardForm, [vs.id]: { ...f, why: e.target.value } })} />
+                          </div>
+                          <div>
+                            <label htmlFor={`mc-s-${vs.id}`}>URL slug</label>
+                            <input id={`mc-s-${vs.id}`} value={f.slug ?? autoSlug} onChange={(e) => setMakeCardForm({ ...makeCardForm, [vs.id]: { ...f, slug: e.target.value } })} />
+                          </div>
+                          <div className="row">
+                            <button disabled={busy} onClick={() => act(async () => {
+                              const form = makeCardForm[vs.id] || {};
+                              const title = (form.title ?? vs.title).trim() || vs.title;
+                              const big_question = (form.why ?? vs.big_question ?? '').trim();
+                              const slug = (form.slug ?? autoSlug).trim();
+                              await api(`/api/admin/sessions/${vs.id}`, 'PATCH', { kind: 'open', hidden: false, title, big_question, slug });
+                              setMissingExpanded(null);
+                              setMakeCardForm({ ...makeCardForm, [vs.id]: undefined });
+                              say('Card created. It will appear on the home page.');
+                            }, 'Creating card')}>Make this a card</button>
+                            <button className="quiet" onClick={() => setMissingExpanded(null)}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
           <div className={'status' + (status.warn ? ' warn' : '')} role="status">{status.t}</div>
         </div>
 
         <div className="col">
           {s && (
             <section className="panel">
-              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-                <h2 style={{ marginBottom: 0 }}>Map · {placed} of {stories.length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
-                <button type="button" className="ghost" style={{ fontSize: 13 }} onClick={async () => {
-                  if (!testMode) { await api('/api/admin/test-mode', 'POST', { on: true }); setTestMode(true); sessionStorage.setItem('sm_test', '1'); }
-                  window.open(link, '_blank');
-                }}>Write a test story →</button>
+              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap' }}>
+                <h2 style={{ marginBottom: 0 }}>Map · {placed} of {stories.filter((x) => !x.is_test).length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
+                <div className="row">
+                  <label className="check" style={{ fontSize: 13, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                    <input type="checkbox" checked={showTestStories} onChange={(e) => setShowTestStories(e.target.checked)} />
+                    Include my test stories
+                  </label>
+                  <button type="button" className="ghost" style={{ fontSize: 13 }} onClick={async () => {
+                    if (!testMode) { await api('/api/admin/test-mode', 'POST', { on: true }); setTestMode(true); sessionStorage.setItem('sm_test', '1'); }
+                    window.open(link, '_blank');
+                  }}>Write a test story →</button>
+                </div>
               </div>
               <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot}
                 onSelect={(pid) => { setSelDot(pid === selDot ? null : pid); }}

@@ -81,9 +81,9 @@ export default function StoryMap({
     ro.observe(svg);
     return () => ro.disconnect();
   }, []);
-  // fs(base) → the SVG font-size that renders as at least 12px on screen
+  // fs(base) → the SVG font-size that renders as at least 13px on screen
   const scale = svgWidth / W;
-  const fs = (base) => Math.ceil(Math.max(base, 12 / Math.max(scale, 0.05)));
+  const fs = (base) => Math.ceil(Math.max(base, 13 / Math.max(scale, 0.05)));
 
   useEffect(() => {
     if (!tooltipPole) return;
@@ -149,12 +149,14 @@ export default function StoryMap({
           <text className="qlab" x={W - M - 12} y={M + 24} textAnchor="end" style={{ fontSize: fs(15) }}>{short(quads.hh, 30)}</text>
         </>
       )}
-      <text className="pole" x={M} y={H - M + 24} style={{ fontSize: fs(10.5) }} {...poleProps('xlow', ax.low, ax.lowDesc)}>← {short(ax.low || '', 30)}</text>
-      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end" style={{ fontSize: fs(10.5) }} {...poleProps('xhigh', ax.high, ax.highDesc)}>{short(ax.high || '', 30)} →</text>
-      <text className="axname" x={W / 2} y={H - 18} textAnchor="middle" style={{ fontSize: fs(11) }}>{ax.name || ''}</text>
-      <text className="pole" x={M - 22} y={H - M} transform={`rotate(-90 ${M - 22} ${H - M})`} style={{ fontSize: fs(10.5) }} {...poleProps('ylow', ay.low, ay.lowDesc)}>← {short(ay.low || '', 30)}</text>
-      <text className="pole" x={M - 22} y={M} textAnchor="end" transform={`rotate(-90 ${M - 22} ${M})`} style={{ fontSize: fs(10.5) }} {...poleProps('yhigh', ay.high, ay.highDesc)}>{short(ay.high || '', 30)} →</text>
-      <text className="axname" x={20} y={H / 2} textAnchor="middle" transform={`rotate(-90 20 ${H / 2})`} style={{ fontSize: fs(11) }}>{ay.name || ''}</text>
+      {/* X axis — labels below frame */}
+      <text className="pole" x={M} y={H - M + 24} style={{ fontSize: fs(13) }} {...poleProps('xlow', ax.low, ax.lowDesc)}>← {short(ax.low || '', 28)}</text>
+      <text className="pole" x={W - M} y={H - M + 24} textAnchor="end" style={{ fontSize: fs(13) }} {...poleProps('xhigh', ax.high, ax.highDesc)}>{short(ax.high || '', 28)} →</text>
+      <text className="axname" x={W / 2} y={H - 18} textAnchor="middle" style={{ fontSize: fs(13) }}>{ax.name || ''}</text>
+      {/* Y axis — name top-left above frame, unrotated; poles inside frame top/bottom */}
+      <text className="axname" x={M} y={M - 26} style={{ fontSize: fs(13) }}>{ay.name || ''}</text>
+      <text className="pole" x={px(0)} y={M + 18} textAnchor="middle" style={{ fontSize: fs(13) }} {...poleProps('yhigh', ay.high, ay.highDesc)}>↑ {short(ay.high || '', 24)}</text>
+      <text className="pole" x={px(0)} y={H - M - 6} textAnchor="middle" style={{ fontSize: fs(13) }} {...poleProps('ylow', ay.low, ay.lowDesc)}>↓ {short(ay.low || '', 24)}</text>
 
       {background.map((p) => <circle key={'bg' + p.id} className="bgdot" cx={px(p.x)} cy={py(p.y)} r={4} />)}
 
@@ -241,10 +243,10 @@ export default function StoryMap({
       {tooltipPole && (() => {
         const TW = 240, TH = 80;
         const poles = {
-          xlow:  ax.lowDesc  ? { label: ax.low,  desc: ax.lowDesc,  tx: M,       ty: H - M - 10 } : null,
-          xhigh: ax.highDesc ? { label: ax.high, desc: ax.highDesc, tx: W - M,   ty: H - M - 10, end: true } : null,
-          ylow:  ay.lowDesc  ? { label: ay.low,  desc: ay.lowDesc,  tx: M + 10,  ty: H - M - 10 } : null,
-          yhigh: ay.highDesc ? { label: ay.high, desc: ay.highDesc, tx: M + 10,  ty: M + 50 } : null,
+          xlow:  ax.lowDesc  ? { label: ax.low,  desc: ax.lowDesc,  tx: M,      ty: H - M - 10 } : null,
+          xhigh: ax.highDesc ? { label: ax.high, desc: ax.highDesc, tx: W - M,  ty: H - M - 10, end: true } : null,
+          ylow:  ay.lowDesc  ? { label: ay.low,  desc: ay.lowDesc,  tx: px(0),  ty: H - M - 6 } : null,
+          yhigh: ay.highDesc ? { label: ay.high, desc: ay.highDesc, tx: px(0),  ty: M + 18 } : null,
         };
         const tp = poles[tooltipPole];
         if (!tp) return null;

@@ -73,6 +73,11 @@ export async function PATCH(req, { params }) {
     }
     if (typeof b.published === 'boolean') put('published', s.is_default ? true : b.published);
     if (b.label_mode === 'names' || b.label_mode === 'anon') put('label_mode', b.label_mode);
+    if (typeof b.kind === 'string' && ['open', 'session', 'visitor'].includes(b.kind)) put('kind', b.kind);
+    if (typeof b.slug === 'string') {
+      const clean = b.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+      put('slug', clean || null);
+    }
 
     if (!set.length) return NextResponse.json({ session: s });
     const r = await q(`update sessions set ${set.join(', ')} where id=$1 returning *`, vals);

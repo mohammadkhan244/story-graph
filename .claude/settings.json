@@ -4,7 +4,12 @@
       "Bash(mkdir -p \"c:/Users/moham/OneDrive/Desktop/3.0-Resources/GitHub Websites/story-graph/app/api/p/[slug]\" 2>/dev/null; echo done)",
       "Bash(mkdir -p \"c:/Users/moham/OneDrive/Desktop/3.0-Resources/GitHub Websites/story-graph/app/api/p/[slug]/stories\" 2>/dev/null; echo done)",
       "Bash(mkdir -p \"c:/Users/moham/OneDrive/Desktop/3.0-Resources/GitHub Websites/story-graph/app/p/[slug]\" 2>/dev/null; echo done)",
-      "Bash(./node_modules/.bin/next build *)"
+      "Bash(./node_modules/.bin/next build *)",
+      "Bash(git merge *)",
+      "Bash(node -e \"const c=require\\('crypto'\\);console.log\\(c.randomBytes\\(32\\).toString\\('base64url'\\)\\)\")",
+      "Bash(vercel link *)",
+      "Bash(npm run *)",
+      "Bash(git bundle *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\moham\\OneDrive\\Desktop\\3.0-Resources\\GitHub Websites\\story-graph\\app\\api\\p",
