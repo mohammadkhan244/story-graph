@@ -137,13 +137,11 @@ export default function StoryMap({
     onPointerUp: (e) => { const d = toXY(e); setDraft(null); onArrow(arrowFor, d); },
   } : {};
 
-  // ── Label placement: x-clamping + overlap detection ────────────────────────
+  // ── Label placement: x-clamping ─────────────────────────────────────────────
   // Returns Map<id, {show: boolean, cx: number}> where cx is clamped absolute x in SVG.
   const ordered = [...points].sort((a, b) => (a.id === youId) - (b.id === youId));
   const labelMap = new Map();
   {
-    const accepted = []; // already-placed bboxes {x1,y1,x2,y2}
-
     function tryLabel(p) {
       if (p.x == null || p.y == null) { labelMap.set(p.id, { show: false, cx: 0 }); return; }
       const you = !!(youId && p.id === youId);
@@ -160,21 +158,9 @@ export default function StoryMap({
       const fsize = big ? 13 : (you ? 13 : 11);
       const maxLen = Math.max(...lines.map((l) => l.length), 1);
       const tw = maxLen * fsize * 0.62;
-      const th = lines.length * fsize * 1.4;
       const rawCx = px(p.x);
       const cx = Math.min(W - M - tw / 2, Math.max(M + tw / 2, rawCx));
-      const ly = py(p.y) + (you ? 36 : 22);
-      const bbox = { x1: cx - tw / 2 - 2, y1: ly - 2, x2: cx + tw / 2 + 2, y2: ly + th + 2 };
-
-      const overlapping = !you && !sel &&
-        accepted.some((b) => bbox.x2 >= b.x1 && bbox.x1 <= b.x2 && bbox.y2 >= b.y1 && bbox.y1 <= b.y2);
-
-      if (!overlapping) {
-        accepted.push(bbox);
-        labelMap.set(p.id, { show: true, cx });
-      } else {
-        labelMap.set(p.id, { show: false, cx: rawCx });
-      }
+      labelMap.set(p.id, { show: true, cx });
     }
 
     // Priority: you → selected → rest
@@ -275,21 +261,21 @@ export default function StoryMap({
               </text>
               <text className="axname" x={W / 2} y={nameY} textAnchor="middle" style={{ fontSize: fs(13) }}>{ax.name || ''}</text>
 
-              {/* Y axis — rotated sideways on the left; poles centred in their half */}
+              {/* Y axis — rotated; name on inner track (x=12), poles on outer track (x=38) */}
               <text className="axname"
-                transform={`translate(16,${H / 2}) rotate(-90)`}
-                textAnchor="middle" style={{ fontSize: fs(13) }}>
+                transform={`translate(12,${H / 2}) rotate(-90)`}
+                textAnchor="middle" style={{ fontSize: fs(12) }}>
                 {ay.name || ''}
               </text>
               <text className="pole"
-                transform={`translate(16,${(M + H / 2) / 2}) rotate(-90)`}
-                textAnchor="middle" style={{ fontSize: fs(13) }}
+                transform={`translate(38,${(M + H / 2) / 2}) rotate(-90)`}
+                textAnchor="middle" style={{ fontSize: fs(12) }}
                 {...poleProps('yhigh', ay.high, ay.highDesc)}>
                 ↑ {ay.high || ''}
               </text>
               <text className="pole"
-                transform={`translate(16,${(H / 2 + H - M) / 2}) rotate(-90)`}
-                textAnchor="middle" style={{ fontSize: fs(13) }}
+                transform={`translate(38,${(H / 2 + H - M) / 2}) rotate(-90)`}
+                textAnchor="middle" style={{ fontSize: fs(12) }}
                 {...poleProps('ylow', ay.low, ay.lowDesc)}>
                 ↓ {ay.low || ''}
               </text>
