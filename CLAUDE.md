@@ -37,6 +37,7 @@ Subsequent runs reuse the running server (unless `CI=1`).
 | `tests/e2e/custom-session.spec.js` | "My decision isn't here" → visitor session, card match, "No, mine is different" |
 | `tests/e2e/email.spec.js` | Email submit in MOCK mode returns ok; UI shows "Sent" |
 | `tests/e2e/test-stories.spec.js` | Test stories hidden on public map; shown on presenter after toggle |
+| `tests/e2e/map-mobile.spec.js` | At 375px: no SVG text past container bounds; no two dot labels overlap |
 
 ## Key architecture notes
 
