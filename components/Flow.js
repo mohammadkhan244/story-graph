@@ -654,6 +654,13 @@ export default function Flow({ mode, id }) {
                 </button>
               </div>
             )}
+            {/* End-stage secondary links: small, under the map */}
+            {stage === 'end' && (
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+                {!isSession && <button type="button" className="textlink" style={{ fontSize: 13 }} onClick={restart}>Write another ↺</button>}
+                <a className="textlink" style={{ fontSize: 13 }} href="/">Try a different decision →</a>
+              </div>
+            )}
             {/* Mobile-only drawing controls appear directly under the map */}
             {stage === 'map' && drawing && (
               <div className="draw-mobile-hint">
@@ -753,100 +760,12 @@ export default function Flow({ mode, id }) {
                     )}
                   </div>
                 )}
-                <div className="endcards">
-                  {!isSession && <button type="button" className="endcard" onClick={restart}><strong>Write another</strong>Same question, new story.</button>}
-                  <a className="endcard" href="/"><strong>Try a different decision</strong>Four more cards are waiting.</a>
-                </div>
                 <p className="note workshop-note" style={{ marginTop: 4 }}>Facing this decision as a team? <a className="textlink" href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map">Run it in a workshop →</a></p>
-                {!isSession && (
-                  <div className="reading-panel">
-                    {readingStage === 'idle' && (
-                      <button type="button" className="endcard reading-cta" onClick={() => setReadingStage('picking')}>
-                        <strong>Get your reading</strong>What your story reveals that you didn't plan to write.
-                      </button>
-                    )}
-                    {readingStage === 'picking' && (
-                      <div className="stack">
-                        <span className="kicker">Where are you with this decision?</span>
-                        <div className="stage-picks">
-                          {[['early', 'Just starting', "You're still figuring out what you want."],
-                            ['mid', 'In the middle', "You've gone some distance. Not done yet."],
-                            ['deep', 'Deep in it', "You've been here a long time. This is your world."]].map(([val, label, desc]) => (
-                            <button key={val} type="button"
-                              className={'stage-pick' + (readingStageVal === val ? ' on' : '')}
-                              onClick={() => setReadingStageVal(val)}>
-                              <strong>{label}</strong>{desc}
-                            </button>
-                          ))}
-                        </div>
-                        <div>
-                          <label htmlFor="rlens" className="note">A lens or worldview to read it through (optional)</label>
-                          <input id="rlens" value={readingLens} onChange={(e) => setReadingLens(e.target.value)}
-                            placeholder="e.g. stoicism, systems thinking…" maxLength={200} />
-                        </div>
-                        <div className="row">
-                          <button type="button" className="big primary" disabled={!readingStageVal} onClick={fetchReading}>Read my story</button>
-                          <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Not now</button>
-                        </div>
-                        {msg && <p className="warn">{msg}</p>}
-                      </div>
-                    )}
-                    {readingStage === 'loading' && (
-                      <div className="reading-loading">
-                        <svg viewBox="0 0 180 180" aria-hidden="true">
-                          {[34, 54, 74, 88].map((r, i) => <ellipse key={i} cx="90" cy="90" rx={r} ry={r * 0.55} fill="none" stroke={i % 2 ? '#79998b' : '#afbeb1'} strokeWidth="1.5" />)}
-                          <circle cx="90" cy="90" r="8" fill="#a72f39" />
-                        </svg>
-                        <LoadingBar stages={READING_STAGES} />
-                      </div>
-                    )}
-                    {readingStage === 'done' && readingResult && (() => {
-                      const raw = readingResult.raw || '';
-                      const chunks = ('## ' + raw.replace(/^\s*## /, '')).split(/\n(?=## )/);
-                      const sections = chunks.map((chunk) => {
-                        const nl = chunk.indexOf('\n');
-                        const header = (nl === -1 ? chunk : chunk.slice(0, nl)).replace(/^## /, '').trim();
-                        const body = nl === -1 ? '' : chunk.slice(nl + 1).trim();
-                        return { header, body };
-                      }).filter((s) => s.header && s.body.trim());
-                      let oneMoveText = '';
-                      const renderedSections = sections.map((sec) => {
-                        let body = sec.body;
-                        if (sec.header.startsWith('PART 8')) {
-                          const omIdx = body.search(/\bONE MOVE\b/);
-                          if (omIdx !== -1) { oneMoveText = body.slice(omIdx + 8).trim(); body = body.slice(0, omIdx).trim(); }
-                        }
-                        return { ...sec, body };
-                      });
-                      return (
-                        <div className="reading-sections">
-                          {renderedSections.map(({ header, body }) => {
-                            const isPart8 = header.startsWith('PART 8');
-                            return (
-                              <details key={header} className={'reading-section' + (isPart8 ? ' highlight' : '')} open={isPart8 || undefined}>
-                                <summary>{header}</summary>
-                                <div className="reading-body">
-                                  {renderMd(body)}
-                                </div>
-                              </details>
-                            );
-                          })}
-                          {oneMoveText && (
-                            <div className="one-move-card">
-                              <span className="kicker">One Move</span>
-                              <p>{oneMoveText}</p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-                {!isSession && mine && (
+                {mine && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--frame)', paddingTop: 18 }}>
                     <div className="panel" style={{ borderRadius: 12, padding: '20px 20px 18px' }}>
                       <div className="stack" style={{ gap: 12 }}>
-                        <strong style={{ font: '400 20px var(--title)', color: 'var(--paper)', display: 'block' }}>Email me my story</strong>
+                        <strong style={{ font: '400 20px var(--title)', color: 'var(--paper)', display: 'block' }}>Keep your story</strong>
                         {emailStatus === 'sent' ? (
                           <p className="ok" style={{ margin: 0 }}>Sent. Check your inbox.</p>
                         ) : (
@@ -865,7 +784,7 @@ export default function Flow({ mode, id }) {
                             </div>
                             <div>
                               <button className="big primary" type="submit" disabled={emailStatus === 'sending' || !emailAddr.trim()}>
-                                {emailStatus === 'sending' ? 'Sending...' : 'Send it to me'}
+                                {emailStatus === 'sending' ? 'Sending...' : 'Email it to me'}
                               </button>
                               {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
                             </div>
@@ -874,9 +793,91 @@ export default function Flow({ mode, id }) {
                         )}
                       </div>
                     </div>
-                    <FictioneeringBlock prefillEmail={emailAddr} />
                   </div>
                 )}
+                <div className="reading-panel">
+                  {readingStage === 'idle' && (
+                    <button type="button" className="endcard reading-cta" onClick={() => setReadingStage('picking')}>
+                      <strong>Get your reading</strong>What your story reveals that you didn't plan to write.
+                    </button>
+                  )}
+                  {readingStage === 'picking' && (
+                    <div className="stack">
+                      <span className="kicker">Where are you with this decision?</span>
+                      <div className="stage-picks">
+                        {[['early', 'Just starting', "You're still figuring out what you want."],
+                          ['mid', 'In the middle', "You've gone some distance. Not done yet."],
+                          ['deep', 'Deep in it', "You've been here a long time. This is your world."]].map(([val, label, desc]) => (
+                          <button key={val} type="button"
+                            className={'stage-pick' + (readingStageVal === val ? ' on' : '')}
+                            onClick={() => setReadingStageVal(val)}>
+                            <strong>{label}</strong>{desc}
+                          </button>
+                        ))}
+                      </div>
+                      <div>
+                        <label htmlFor="rlens" className="note">A lens or worldview to read it through (optional)</label>
+                        <input id="rlens" value={readingLens} onChange={(e) => setReadingLens(e.target.value)}
+                          placeholder="e.g. stoicism, systems thinking…" maxLength={200} />
+                      </div>
+                      <div className="row">
+                        <button type="button" className="big primary" disabled={!readingStageVal} onClick={fetchReading}>Read my story</button>
+                        <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Not now</button>
+                      </div>
+                      {msg && <p className="warn">{msg}</p>}
+                    </div>
+                  )}
+                  {readingStage === 'loading' && (
+                    <div className="reading-loading">
+                      <svg viewBox="0 0 180 180" aria-hidden="true">
+                        {[34, 54, 74, 88].map((r, i) => <ellipse key={i} cx="90" cy="90" rx={r} ry={r * 0.55} fill="none" stroke={i % 2 ? '#79998b' : '#afbeb1'} strokeWidth="1.5" />)}
+                        <circle cx="90" cy="90" r="8" fill="#a72f39" />
+                      </svg>
+                      <LoadingBar stages={READING_STAGES} />
+                    </div>
+                  )}
+                  {readingStage === 'done' && readingResult && (() => {
+                    const raw = readingResult.raw || '';
+                    const chunks = ('## ' + raw.replace(/^\s*## /, '')).split(/\n(?=## )/);
+                    const sections = chunks.map((chunk) => {
+                      const nl = chunk.indexOf('\n');
+                      const header = (nl === -1 ? chunk : chunk.slice(0, nl)).replace(/^## /, '').trim();
+                      const body = nl === -1 ? '' : chunk.slice(nl + 1).trim();
+                      return { header, body };
+                    }).filter((s) => s.header && s.body.trim());
+                    let oneMoveText = '';
+                    const renderedSections = sections.map((sec) => {
+                      let body = sec.body;
+                      if (sec.header.startsWith('PART 8')) {
+                        const omIdx = body.search(/\bONE MOVE\b/);
+                        if (omIdx !== -1) { oneMoveText = body.slice(omIdx + 8).trim(); body = body.slice(0, omIdx).trim(); }
+                      }
+                      return { ...sec, body };
+                    });
+                    return (
+                      <div className="reading-sections">
+                        {renderedSections.map(({ header, body }) => {
+                          const isPart8 = header.startsWith('PART 8');
+                          return (
+                            <details key={header} className={'reading-section' + (isPart8 ? ' highlight' : '')} open={isPart8 || undefined}>
+                              <summary>{header}</summary>
+                              <div className="reading-body">
+                                {renderMd(body)}
+                              </div>
+                            </details>
+                          );
+                        })}
+                        {oneMoveText && (
+                          <div className="one-move-card">
+                            <span className="kicker">One Move</span>
+                            <p>{oneMoveText}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                {mine && <FictioneeringBlock prefillEmail={emailAddr} />}
               </div>
             )}
 

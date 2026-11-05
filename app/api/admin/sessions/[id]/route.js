@@ -73,6 +73,8 @@ export async function PATCH(req, { params }) {
     }
     if (typeof b.published === 'boolean') put('published', s.is_default ? true : b.published);
     if (b.label_mode === 'names' || b.label_mode === 'anon') put('label_mode', b.label_mode);
+    if (typeof b.featured === 'boolean') put('featured', b.featured);
+    if (typeof b.card_why === 'string') put('card_why', b.card_why.trim().slice(0, 400));
     if (typeof b.kind === 'string' && ['open', 'session', 'visitor'].includes(b.kind)) put('kind', b.kind);
     if (typeof b.slug === 'string') {
       const clean = b.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);

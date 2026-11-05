@@ -26,18 +26,30 @@ export default function Home() {
 
   const sets = useMemo(() => {
     if (!data) return [];
+
+    // Build custom sets from featured sessions (prepended as first set(s))
+    const customCards = (data.featured || []).map((s) => ({
+      ...s,
+      // Link to parent card's /p/<slug> for live sessions with a parent, else /p/<slug> or /s/<id>
+      href: s.parent_slug ? `/p/${s.parent_slug}` : s.slug ? `/p/${s.slug}` : `/s/${s.id}`,
+    }));
+    const customSets = [];
+    for (let i = 0; i < customCards.length; i += 4) {
+      customSets.push({ label: 'Custom', cards: customCards.slice(i, i + 4) });
+    }
+
     const bySlug = Object.fromEntries(data.prompts.map((p) => [p.slug, p]));
     const used = new Set();
     const out = SETS.map((s) => ({ ...s, cards: s.slugs.filter((x) => bySlug[x]).map((x) => { used.add(x); return bySlug[x]; }) }))
       .filter((s) => s.cards.length);
     const extra = data.prompts.filter((p) => !used.has(p.slug));
     for (let i = 0; i < extra.length; i += 4) out.push({ label: 'More', cards: extra.slice(i, i + 4) });
-    return out;
+    return [...customSets, ...out];
   }, [data]);
 
   function pick(p) {
-    setChosen(p.slug);
-    setTimeout(() => { window.location.href = `/p/${p.slug}`; }, 380);
+    setChosen(p.href || p.slug);
+    setTimeout(() => { window.location.href = p.href || `/p/${p.slug}`; }, 380);
   }
   function next() { setSet((set + 1) % sets.length); setDeal(deal + 1); }
 
@@ -81,8 +93,8 @@ export default function Home() {
               <div role="listitem" key={p.slug}>
                 <button
                   type="button"
-                  title={decision(p.slug, p.title).why}
-                  className={'pcard' + (chosen === p.slug ? ' chosen' : '')}
+                  title={decision(p.slug, p.big_question || p.title).why}
+                  className={'pcard' + (chosen === (p.href || p.slug) ? ' chosen' : '')}
                   style={{ '--i': i, '--face': suit.face, '--art': suit.art, '--text': suit.text, '--edge': suit.edge }}
                   onClick={() => pick(p)}
                   disabled={!!chosen}
@@ -90,8 +102,8 @@ export default function Home() {
                   <span className="pcard-corner pcard-corner-tl" aria-hidden="true">{suit.initial}<span className="pcard-corner-pip" /></span>
                   <span className="pcard-corner pcard-corner-br" aria-hidden="true">{suit.initial}<span className="pcard-corner-pip" /></span>
                   <span className="pcard-art" dangerouslySetInnerHTML={{ __html: artSvg(p.slug, true) }} />
-                  <span className="pcard-q">{decision(p.slug, p.title).q}</span>
-                  <span className="pcard-why">{decision(p.slug, p.title).why}</span>
+                  <span className="pcard-q">{decision(p.slug, p.big_question || p.title).q}</span>
+                  <span className="pcard-why">{decision(p.slug, p.big_question || p.title).why}</span>
                   <span className="pcard-meta">{p.n === 0 ? 'Be the first' : `${p.n} ${p.n === 1 ? 'story' : 'stories'} so far`}</span>
                 </button>
               </div>

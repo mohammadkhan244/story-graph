@@ -45,7 +45,7 @@ async function reachEndStage(page) {
 test.describe('Email (MOCK mode)', () => {
   test('email form is present at the end stage for a card-flow story', async ({ page }) => {
     await reachEndStage(page);
-    await expect(page.getByText('Email me my story')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Keep your story')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#em-email')).toBeVisible();
   });
 
@@ -53,7 +53,7 @@ test.describe('Email (MOCK mode)', () => {
     await reachEndStage(page);
 
     await page.locator('#em-email').fill('e2e-test@example.com');
-    await page.getByRole('button', { name: 'Send it to me' }).click();
+    await page.getByRole('button', { name: 'Email it to me' }).click();
 
     // MOCK_CLAUDE=1 + no RESEND_API_KEY → server logs and returns {ok:true}
     // UI transitions to the "sent" state

@@ -77,7 +77,7 @@ export default function Admin() {
   const [status, setStatus] = useState({ t: '', warn: false });
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [form, setForm] = useState({ title: '', prompt: '', big_question: '', instructions: '', year: '', signals: '', minutes: 10 });
+  const [form, setForm] = useState({ title: '', prompt: '', big_question: '', instructions: '', year: '', signals: '', minutes: 10, featured: false, card_why: '' });
   const [nw, setNw] = useState({ title: '', prompt: '', signals: '', minutes: 10 });
   const [axes, setAxes] = useState({ x: emptyAxis, y: emptyAxis });
   const [cands, setCands] = useState([]);
@@ -116,6 +116,8 @@ export default function Admin() {
           signals: signalsToText(s.signals || []),
           minutes: s.minutes,
           hidden: !!s.hidden,
+          featured: !!s.featured,
+          card_why: s.card_why || '',
         });
         setAxes(s.axes ? { x: { ...emptyAxis, ...s.axes.x }, y: { ...emptyAxis, ...s.axes.y } } : { x: emptyAxis, y: emptyAxis });
         setCands(s.cands || []); setSelDot(null);
@@ -295,12 +297,18 @@ export default function Admin() {
                     {isPrompt && <label className="check"><input type="checkbox" checked={!!form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} /> Hide from menu</label>}
                     <div />
                   </div>
+                  <label className="check"><input type="checkbox" checked={!!form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} /> Show on home page (Custom card)</label>
+                  {form.featured && (
+                    <div><label htmlFor="e-cw">Why line (shown as card tooltip)</label><input id="e-cw" value={form.card_why} onChange={(e) => setForm({ ...form, card_why: e.target.value })} placeholder="Who would pick this card and why" /></div>
+                  )}
                   <div className="row">
                     <button className="ghost" disabled={busy} onClick={() => {
                       const body = {
                         title: form.title, prompt: form.prompt,
                         signals: textToSignals(form.signals),
                         minutes: form.minutes,
+                        featured: !!form.featured,
+                        card_why: form.card_why || '',
                       };
                       if (isPrompt) {
                         body.big_question = form.big_question;
@@ -454,13 +462,15 @@ export default function Admin() {
                             <label htmlFor={`mc-s-${vs.id}`}>URL slug</label>
                             <input id={`mc-s-${vs.id}`} value={f.slug ?? autoSlug} onChange={(e) => setMakeCardForm({ ...makeCardForm, [vs.id]: { ...f, slug: e.target.value } })} />
                           </div>
+                          <label className="check"><input type="checkbox" checked={!!f.featured} onChange={(e) => setMakeCardForm({ ...makeCardForm, [vs.id]: { ...f, featured: e.target.checked } })} /> Show on home page (Custom card)</label>
                           <div className="row">
                             <button disabled={busy} onClick={() => act(async () => {
                               const form = makeCardForm[vs.id] || {};
                               const title = (form.title ?? vs.title).trim() || vs.title;
                               const big_question = (form.why ?? vs.big_question ?? '').trim();
                               const slug = (form.slug ?? autoSlug).trim();
-                              await api(`/api/admin/sessions/${vs.id}`, 'PATCH', { kind: 'open', hidden: false, title, big_question, slug });
+                              const featured = !!form.featured;
+                              await api(`/api/admin/sessions/${vs.id}`, 'PATCH', { kind: 'open', hidden: false, title, big_question, slug, featured });
                               setMissingExpanded(null);
                               setMakeCardForm({ ...makeCardForm, [vs.id]: undefined });
                               say('Card created. It will appear on the home page.');

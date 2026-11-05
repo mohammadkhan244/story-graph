@@ -25,6 +25,17 @@ export async function GET() {
        order by s.created_at desc`
     );
 
-    return NextResponse.json({ prompts, past });
+    /* Featured custom sessions shown as a "Custom" suit on the home page */
+    const featured = await q(
+      `select s.id, s.title, s.slug, s.big_question, s.card_why, s.kind, s.parent_id,
+         p.slug as parent_slug,
+         (select count(*)::int from stories t where t.session_id=s.id and not t.is_test) as n
+       from sessions s
+       left join sessions p on p.id = s.parent_id
+       where s.featured = true
+       order by s.created_at desc`
+    );
+
+    return NextResponse.json({ prompts, past, featured });
   } catch (e) { return fail(e); }
 }

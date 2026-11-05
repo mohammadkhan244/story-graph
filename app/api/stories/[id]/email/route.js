@@ -100,8 +100,7 @@ function buildHtml(story, session, questions, baseUrl) {
   const storyUrl = session.slug
     ? `${baseUrl}/p/${session.slug}`
     : `${baseUrl}/s/${story.session_id}`;
-  const mapId = session.slug || story.session_id;
-  const mapUrl = `${baseUrl}/m/${mapId}`;
+  const mapUrl = `${baseUrl}/m/${story.session_id}`;
 
   const questionsHtml = questions.length
     ? `<ol style="margin:8px 0 0;padding-left:22px;">${questions.map((q) => `<li style="margin-bottom:10px;font-size:15px;line-height:1.65;color:#0c1012;">${esc(q)}</li>`).join('')}</ol>`
@@ -112,7 +111,7 @@ function buildHtml(story, session, questions, baseUrl) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc('Your story: ' + (story.headline || 'Story Map'))}</title>
+<title>${esc(story.headline ? `Your story: ${story.headline} · ${session.title || ''}` : `Your story: ${session.title || 'Story Map'}`)}</title>
 </head>
 <body style="margin:0;padding:0;background:#fffdf6;font-family:Georgia,serif;color:#0c1012;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fffdf6">
@@ -223,7 +222,10 @@ export async function POST(req, { params }) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://story-map.themohammadkhan.com';
     const questions = getActiveQuestions(story);
     const html = buildHtml(story, session, questions, baseUrl);
-    const subject = `Your story: ${story.headline || 'Story Map'}`;
+    const headline = story.headline || '';
+    const subject = headline
+      ? `Your story: ${headline} · ${session.title || 'Story Map'}`
+      : `Your story: ${session.title || 'Story Map'}`;
 
     if (process.env.MOCK_CLAUDE === '1') {
       console.log('\n--- MOCK EMAIL ---');
@@ -252,9 +254,9 @@ export async function POST(req, { params }) {
       const yPole = story.y != null ? (story.y < 0 ? ay.low : ay.high) || '' : '';
       const quadrant = [xPole, yPole].filter(Boolean).join(' + ');
       const direction = arrowDirection(story, session.axes);
-      const mapId = session.slug || story.session_id;
-      const mapUrl = `${baseUrl}/m/${mapId}`;
+      const webhookMapUrl = `${baseUrl}/m/${story.session_id}`;
       const bigQ = session.big_question || session.prompt || '';
+      const source = session.kind === 'session' ? 'session' : 'card';
       const payload = {
         name: (story.name || '').trim() || email,
         email,
@@ -262,7 +264,8 @@ export async function POST(req, { params }) {
         status: 'To contact',
         known: 'Cold - 0 prior contact',
         intro_via: 'Story Map',
-        notes: `${bigQ} | ${story.headline || ''} | Landed: ${quadrant} | Wants: ${direction || 'no direction'} | ${mapUrl}`,
+        source,
+        notes: `${session.title || ''} | ${bigQ} | ${story.headline || ''} | Landed: ${quadrant} | Wants: ${direction || 'no direction'} | ${webhookMapUrl}`,
         created_at: new Date().toISOString(),
       };
       const headers = { 'Content-Type': 'application/json' };
