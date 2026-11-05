@@ -1,13 +1,26 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
+const { EMBEDDED_URL } = require('./tests/e2e/db-config');
 
-const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
-if (!TEST_DATABASE_URL) {
+// Default to the embedded Postgres started by global-setup. Only override
+// TEST_DATABASE_URL if you explicitly want a different local/staging DB.
+const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL || EMBEDDED_URL;
+
+// Safety: refuse Neon (production cloud) and the production DATABASE_URL.
+const PROD_DB_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
+
+if (TEST_DATABASE_URL.includes('neon.tech')) {
   process.stderr.write(
-    '\nERROR: TEST_DATABASE_URL is not set.\n' +
-    'Point it at a local test database — never production.\n' +
-    'Example:\n' +
-    '  TEST_DATABASE_URL=postgresql://localhost/story_map_test npm run test:e2e\n\n'
+    '\nERROR: TEST_DATABASE_URL must not point at Neon (production cloud database).\n' +
+    'Leave TEST_DATABASE_URL unset — global-setup starts an embedded database automatically.\n\n'
+  );
+  process.exit(1);
+}
+
+if (PROD_DB_URL && TEST_DATABASE_URL === PROD_DB_URL) {
+  process.stderr.write(
+    '\nERROR: TEST_DATABASE_URL must not match DATABASE_URL (production).\n' +
+    'Leave TEST_DATABASE_URL unset — global-setup starts an embedded database automatically.\n\n'
   );
   process.exit(1);
 }

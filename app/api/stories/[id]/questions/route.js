@@ -10,36 +10,36 @@ export const maxDuration = 30;
 const r05 = (v) => Math.round((Number(v) || 0) * 2) / 2;
 const cacheKey = (b) => b.stays ? 'stays' : `${r05(b.arrow.x)},${r05(b.arrow.y)}`;
 
-const COUNT = { stay: 5, deepen: 6, pullback: 4, cross: 5 };
+const COUNT = { stay: 5, deepen: 5, balance: 5, cross: 5 };
 
 const INSTRUCTIONS = {
-  stay: `Write exactly 5 questions.
-- Q1: Something in their story written as a fact that is actually a wish, or a quiet assumption they did not examine — quote a specific phrase from the story inside the question.
-- Q2: What has to stay true for them to remain where their dot is.
-- Q3: What could pull them away from here without their noticing.
-- Q4: Who is already living where they are, and what do they know that this writer doesn't.
-- Q5: One move this week (under 2 hours, under $50) that would confirm staying is right.`,
+  stay: `Write exactly 5 questions. Plain language only — under 15 words per question, one idea each, no em dashes, no jargon.
+- Q1: Something in their story written as a fact that is actually a wish — quote a specific phrase from the story inside the question.
+- Q2: What keeps them where they are right now.
+- Q3: What could pull them in a different direction without them noticing.
+- Q4: Who else lives in this position, and what do they know that this writer doesn't.
+- Q5: One small thing this week (under 2 hours) that would tell them staying is right.`,
 
-  deepen: `Write exactly 6 questions.
-- Q1: Something in their story written as a certainty that might be the thing they most want to believe — quote a specific phrase.
-- Q2: What it would cost them to go further in this direction than they have already planned.
-- Q3: What they are still holding back from this direction, and what would actually happen if they stopped.
-- Q4: What full commitment to this direction looks like on a completely ordinary day.
-- Q5: What would be the sign, if they saw it clearly, that they had gone too far.
-- Q6: One move this week (under 2 hours, under $50) that would test whether they are ready to go further.`,
+  deepen: `Write exactly 5 questions. Plain language only — under 15 words per question, one idea each, no em dashes, no jargon.
+- Q1: Something in their story written as a certainty that might be what they most want to believe — quote a specific phrase.
+- Q2: What going further in this direction would actually cost them.
+- Q3: What they are still holding back from this direction.
+- Q4: What full commitment to this direction looks like on a completely ordinary Tuesday.
+- Q5: One small thing this week (under 2 hours) that would tell them whether they have gone too far.`,
 
-  pullback: `Write exactly 4 questions.
-- Q1: Something left out of their story that they almost wrote, or written around without being said directly — if nothing obvious, ask about the gap between what they described and what they seem to want; quote a phrase from the story.
-- Q2: What about the direction they drew feels like too much — the distance, the destination, or both.
-- Q3: If they eased off, what from where they already are they would want to keep.
-- Q4: What pulling back would cost them, in the near term and over time.`,
+  balance: `Write exactly 5 questions. Plain language only — under 15 words per question, one idea each, no em dashes, no jargon.
+- Q1: Something left out of their story that they almost wrote — quote a phrase from the story or ask about the gap between what they described and what they seem to want.
+- Q2: What from where they are now they want to keep.
+- Q3: What they would be glad to let go of as they move toward the middle.
+- Q4: What a balanced version of this looks like on a completely ordinary day.
+- Q5: One small step this week (under 2 hours) that would tell them it is working.`,
 
-  cross: `Write exactly 5 questions.
-- Q1: Something in their story written as a fact that is actually a wish, or a gap between what they described and what they seem to want — quote a specific phrase.
-- Q2: What needs to happen first for this move to be possible.
-- Q3: What must be true for that future to exist — for them, for the people around them, and for the wider world.
-- Q4: Where that future is already being built somewhere, or actively resisted.
-- Q5: One move this week (under 2 hours, under $50) that would tell them if this direction is right.`,
+  cross: `Write exactly 5 questions. Plain language only — under 15 words per question, one idea each, no em dashes, no jargon.
+- Q1: Something in their story written as a fact that is actually a wish — quote a specific phrase.
+- Q2: What has to happen first for this move to be possible.
+- Q3: What must be true about them and the world around them for this to work.
+- Q4: Where this future is already happening somewhere, even in a small way.
+- Q5: The hardest part of this direction to believe right now.`,
 };
 
 function buildPrompt(session, story, dot, b, type) {

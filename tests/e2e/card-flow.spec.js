@@ -48,9 +48,12 @@ test('draw arrow → "Think it through" → questions → end stage', async ({ p
 
   await drawArrow(page);
 
-  // After saving the arrow, "Think it through →" becomes available
-  await expect(page.getByRole('button', { name: 'Think it through' })).toBeVisible({ timeout: 8000 });
-  await page.getByRole('button', { name: 'Think it through' }).click();
+  // After saving the arrow, the questions button appears directly under the map
+  await expect(page.getByRole('button', { name: /Answer 5 questions about your arrow/ })).toBeVisible({ timeout: 8000 });
+  await page.getByRole('button', { name: /Answer 5 questions about your arrow/ }).click();
+
+  // Wait for questions to load, then advance to Done
+  await expect(page.getByRole('button', { name: /Next question|Done/ })).toBeVisible({ timeout: 10_000 });
 
   // Questions stage — at least one question visible
   await expect(page.locator('.q')).toBeVisible({ timeout: 8000 });

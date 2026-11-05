@@ -1,6 +1,7 @@
 // @ts-check
 // Tests that is_test stories:
-//   - are hidden on public maps (not returned by promptMap / sessionMap)
+//   - are hidden on public maps by default (not returned by promptMap / sessionMap)
+//   - appear on public maps (without isTest flag) after show_public is set via admin toggle
 //   - are shown on the presenter map only after the "Include my test stories" toggle is on
 const { test, expect } = require('@playwright/test');
 const { ADMIN_PW, SAMPLE_STORY, submitStory, waitForMap } = require('./helpers');
@@ -34,12 +35,11 @@ test.describe('Test stories', () => {
     await adminCtx?.close();
   });
 
-  test('test story does not appear on the public map', async ({ browser }) => {
+  test('test story does not appear on the public map by default', async ({ browser }) => {
     // 1. Submit a regular (non-test) story first so the map has at least one dot
     const regularCtx = await browser.newContext();
     const regularPage = await regularCtx.newPage();
 
-    // Navigate to origin before clearing localStorage
     await regularPage.goto('/');
     await regularPage.evaluate(() =>
       Object.keys(localStorage)
@@ -56,7 +56,6 @@ test.describe('Test stories', () => {
 
     // 2. Submit a TEST story using admin context (needs sm_admin + sm_test cookies)
     const adminPage = await adminCtx.newPage();
-    // Set the sm_test cookie so the server marks the story as is_test=true
     await adminCtx.addCookies([{ name: 'sm_test', value: '1', url: 'http://localhost:3000' }]);
 
     await adminPage.goto('/');
@@ -79,17 +78,73 @@ test.describe('Test stories', () => {
 
     // 3. Load the map as a fresh anonymous visitor — test story must NOT appear
     const publicCtx = await browser.newContext();
-    const publicPage = await publicCtx.newPage();
-
-    // Fetch the map via API and count non-test points
     const mapRes = await publicCtx.request.get(`/api/sessions/${visitorSessionId}`);
     expect(mapRes.ok()).toBeTruthy();
     const { map } = await mapRes.json();
     expect(map).not.toBeNull();
 
-    // All points returned by the public API must have is_test falsy
+    // Public API must not expose any isTest points when show_public is false (default)
     const testPoints = (map.points || []).filter((p) => p.isTest);
     expect(testPoints).toHaveLength(0);
+
+    await publicCtx.close();
+  });
+
+  test('test story appears on public map after "Show publicly" admin toggle', async ({ browser }) => {
+    // Submit a TEST story
+    await adminCtx.addCookies([{ name: 'sm_test', value: '1', url: 'http://localhost:3000' }]);
+    const adminPage = await adminCtx.newPage();
+
+    await adminPage.goto('/');
+    await adminPage.evaluate(() =>
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('sm-'))
+        .forEach((k) => localStorage.removeItem(k))
+    );
+    await adminPage.goto(`/s/${visitorSessionId}`);
+    await submitStory(adminPage, { headline: 'TEST: show_public test' });
+    await waitForMap(adminPage, 15_000);
+    await adminPage.close();
+
+    // Clear sm_test, re-login
+    await adminCtx.clearCookies();
+    await adminCtx.request.post('/api/admin/login', { data: { password: ADMIN_PW } });
+
+    // Find the test story id via admin API
+    const detRes = await adminCtx.request.get(`/api/admin/sessions/${visitorSessionId}`);
+    expect(detRes.ok()).toBeTruthy();
+    const { stories } = await detRes.json();
+    const testStory = stories.find((s) => s.is_test && s.headline === 'TEST: show_public test');
+    expect(testStory).toBeTruthy();
+
+    // Verify it is NOT in the public map before toggling
+    const publicCtx = await browser.newContext();
+    const beforeRes = await publicCtx.request.get(`/api/sessions/${visitorSessionId}`);
+    const beforeMap = await beforeRes.json();
+    const beforeIds = (beforeMap.map && beforeMap.map.points || []).map((p) => p.id);
+    expect(beforeIds).not.toContain(testStory.id);
+
+    // Toggle show_public = true via admin API
+    const patchRes = await adminCtx.request.patch(`/api/admin/stories/${testStory.id}`, {
+      data: { show_public: true },
+    });
+    expect(patchRes.ok()).toBeTruthy();
+
+    // Now the story should appear in the public map
+    const afterRes = await publicCtx.request.get(`/api/sessions/${visitorSessionId}`);
+    expect(afterRes.ok()).toBeTruthy();
+    const afterMap = await afterRes.json();
+    const afterIds = (afterMap.map && afterMap.map.points || []).map((p) => p.id);
+    expect(afterIds).toContain(testStory.id);
+
+    // It must NOT have isTest flag (renders as normal dot, no TEST label)
+    const shownPoint = (afterMap.map.points || []).find((p) => p.id === testStory.id);
+    expect(shownPoint.isTest).toBeFalsy();
+
+    // Restore: set show_public back to false
+    await adminCtx.request.patch(`/api/admin/stories/${testStory.id}`, {
+      data: { show_public: false },
+    });
 
     await publicCtx.close();
   });
@@ -117,7 +172,7 @@ test.describe('Test stories', () => {
     // Open the presenter page
     const presenterPage = await adminCtx.newPage();
     await presenterPage.goto(`/present/${visitorSessionId}`);
-    await expect(presenterPage.locator('.bigcount, .mapwrap')).toBeVisible({ timeout: 10_000 });
+    await expect(presenterPage.locator('.bigcount, .mapwrap').first()).toBeVisible({ timeout: 10_000 });
 
     // Reveal the map
     const revealBtn = presenterPage.getByRole('button', { name: 'Reveal the map' });

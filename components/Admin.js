@@ -401,7 +401,24 @@ export default function Admin() {
           {s && stories.some((x) => x.is_test) && (
             <section className="panel stack">
               <h2>Test stories</h2>
-              <p className="note">{stories.filter((x) => x.is_test).length} test {stories.filter((x) => x.is_test).length === 1 ? 'story' : 'stories'} for this prompt. They are excluded from public maps and counts.</p>
+              <p className="note">
+                {stories.filter((x) => x.is_test).length} test {stories.filter((x) => x.is_test).length === 1 ? 'story' : 'stories'}.
+                {' '}Hidden on public maps unless "Show publicly" is on.
+              </p>
+              <ul className="list" style={{ marginBottom: 8 }}>
+                {stories.filter((x) => x.is_test).map((x) => (
+                  <li key={x.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--paper)' }}>{x.headline || (x.name && x.name.trim()) || 'Anonymous'}</span>
+                    <label className="check" style={{ fontSize: 13, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                      <input type="checkbox" checked={!!x.show_public} onChange={async (e) => {
+                        await api(`/api/admin/stories/${x.id}`, 'PATCH', { show_public: e.target.checked });
+                        await loadDet(selId);
+                      }} />
+                      Show publicly
+                    </label>
+                  </li>
+                ))}
+              </ul>
               <Armed label="Delete test stories" armedLabel="Tap again to confirm" onConfirm={() => act(async () => {
                 const j = await api(`/api/admin/test-stories?session=${s.id}`, 'DELETE');
                 say(`Deleted ${j.deleted} test ${j.deleted === 1 ? 'story' : 'stories'}.`);
@@ -462,10 +479,20 @@ export default function Admin() {
         </div>
 
         <div className="col">
-          {s && (
+          {s && (() => {
+            const ae = stories.reduce((acc, x) => { if (x.arrow_effect) acc[x.arrow_effect] = (acc[x.arrow_effect] || 0) + 1; return acc; }, {});
+            const aeTotal = (ae['Yes'] || 0) + (ae['A little'] || 0) + (ae['No'] || 0);
+            return (
             <section className="panel">
               <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap' }}>
-                <h2 style={{ marginBottom: 0 }}>Map · {placed} of {stories.filter((x) => !x.is_test).length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
+                <div>
+                  <h2 style={{ marginBottom: 0 }}>Map · {placed} of {stories.filter((x) => !x.is_test).length} placed {isPrompt ? '· always visible' : s.published ? '· visible to writers' : '· only you see this'}</h2>
+                  {aeTotal > 0 && (
+                    <p className="note" style={{ margin: '2px 0 0' }}>
+                      Arrow changed view: Yes {ae['Yes'] || 0} · A little {ae['A little'] || 0} · No {ae['No'] || 0}
+                    </p>
+                  )}
+                </div>
                 <div className="row">
                   <label className="check" style={{ fontSize: 13, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
                     <input type="checkbox" checked={showTestStories} onChange={(e) => setShowTestStories(e.target.checked)} />
@@ -491,7 +518,8 @@ export default function Admin() {
                 showArrows />
               {tags.length > 0 && <div className="legend">{tags.map((t) => <span key={t}><i className="sw" style={{ background: color(t) }} />{t}</span>)}</div>}
             </section>
-          )}
+          );
+        })()}
           {s && s.readout && <section className="panel"><h2>What the map shows</h2><p className="readout">{s.readout}</p></section>}
           {dot && dot.x != null && s.axes && (() => {
             const dotForQ = { x: dot.x, y: dot.y, stays: !!dot.stays, arrow: dot.ax != null ? { x: dot.ax, y: dot.ay } : null };

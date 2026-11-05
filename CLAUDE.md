@@ -4,27 +4,30 @@
 
 After every change, run `npm run test:e2e` and fix all failures before reporting the work as done.
 Include the pass/fail summary (e.g. "18 passed, 0 failed") in your reply.
-**Never run tests against production.** The command refuses to start unless `TEST_DATABASE_URL` is
-set to a local/staging database that is explicitly not the production connection string.
+**Never run tests against production or Neon.** E2E tests use the embedded Postgres started by
+`global-setup.js` — no manual database setup is required. The test runner refuses to start if
+`TEST_DATABASE_URL` contains `neon.tech` or matches `DATABASE_URL`.
 
 ### Running the tests
 
 ```
-TEST_DATABASE_URL=postgresql://localhost/story_map_test npm run test:e2e
+npm run test:e2e
 ```
+
+`global-setup.js` automatically starts an embedded Postgres on port 5544, applies the schema, and
+seeds fixtures. `global-teardown.js` stops it and cleans up the data directory.
 
 The first run builds the app (`npm run build`) and starts it on port 3000 with:
 - `MOCK_CLAUDE=1` — all Anthropic calls return deterministic mocks; no real API key needed
 - `ADMIN_PASSWORD` — set to the value of `TEST_ADMIN_PASSWORD` env var (default `e2e-test-secret`)
-- `DATABASE_URL` — set to `TEST_DATABASE_URL`
+- `DATABASE_URL` — set to the embedded Postgres URL (`postgresql://postgres:password@localhost:5544/story_map_test`)
 
 Subsequent runs reuse the running server (unless `CI=1`).
 
 ### Pre-requisites
 
-1. The test database must have the same schema as production. Run migrations before the first run.
-2. Install Playwright browsers once: `npx playwright install chromium`
-3. Stop any dev server on port 3000 before running (or set `BASE_URL=http://localhost:3001` and
+1. Install Playwright browsers once: `npx playwright install chromium`
+2. Stop any dev server on port 3000 before running (or set `BASE_URL=http://localhost:3001` and
    update `webServer.env.PORT=3001` in `playwright.config.js`).
 
 ### Test files

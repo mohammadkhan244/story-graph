@@ -46,10 +46,12 @@ test.describe('Map at 375px viewport', () => {
 
     await page.waitForTimeout(400);
 
-    // On mobile only YOU label shows by default — tap a second dot to get two labels
+    // On mobile only YOU label shows by default — tap a second dot to get two labels.
+    // force:true bypasses the reachability check: when all dots are stacked at the same position
+    // the you-dot's halo circle visually covers the other dots, but the click event still reaches them.
     const dots = page.locator('.mapwrap svg .dot:not(.you)');
     const dotCount = await dots.count();
-    if (dotCount > 0) await dots.first().click();
+    if (dotCount > 0) await dots.first().click({ force: true });
 
     await page.waitForTimeout(200);
 

@@ -10,6 +10,7 @@ const CUSTOM_DECISION = 'Should I move to a bigger apartment in the city?';
 
 test.describe('Custom (visitor) session', () => {
   test.beforeEach(async ({ page }) => {
+    await page.goto('/');
     await page.evaluate(() =>
       Object.keys(localStorage)
         .filter((k) => k.startsWith('sm-'))

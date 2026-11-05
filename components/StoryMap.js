@@ -187,13 +187,11 @@ export default function StoryMap({
 
   return (
     <>
-      {/* ── Y-high label above SVG (mobile only) ── */}
-      {isMobile && (
-        <div className="map-y-high">
-          {mPole('yhigh', '↑', ay.high)}
-          {ay.name && <span className="map-axname-badge">{ay.name}</span>}
-        </div>
-      )}
+      {/* ── Y-high label above SVG (always) ── */}
+      <div className="map-y-high" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {ay.name && <span className="map-axname-badge" style={{ order: -1 }}>{ay.name}</span>}
+        {mPole('yhigh', '↑', ay.high)}
+      </div>
 
       <svg ref={svgRef}
         className={'map' + (drawing ? ' drawing' : '') + (big ? ' big' : '') + (reveal ? ' reveal' : '')}
@@ -242,17 +240,16 @@ export default function StoryMap({
           );
         })()}
 
-        {/* Axis labels — desktop only; mobile shows them as HTML below */}
+        {/* X-axis labels — desktop only; mobile shows all axis labels as HTML below */}
         {!isMobile && (() => {
           const lowLines = wrapSvg(`← ${ax.low || ''}`, 30);
           const highLines = wrapSvg(`${ax.high || ''} →`, 30);
-          const lh = fs(13) * 1.3; // line-height between wrapped x-axis lines
+          const lh = fs(13) * 1.3;
           const poleLines = Math.max(lowLines.length, highLines.length);
           const poleY = H - M + 18;
           const nameY = poleY + (poleLines - 1) * lh + 20;
           return (
             <>
-              {/* X axis — horizontal below frame, wrapping */}
               <text className="pole" x={M} y={poleY} style={{ fontSize: fs(13) }} {...poleProps('xlow', ax.low, ax.lowDesc)}>
                 {lowLines.map((ln, k) => <tspan key={k} x={M} dy={k === 0 ? 0 : lh}>{ln}</tspan>)}
               </text>
@@ -260,25 +257,6 @@ export default function StoryMap({
                 {highLines.map((ln, k) => <tspan key={k} x={W - M} dy={k === 0 ? 0 : lh}>{ln}</tspan>)}
               </text>
               <text className="axname" x={W / 2} y={nameY} textAnchor="middle" style={{ fontSize: fs(13) }}>{ax.name || ''}</text>
-
-              {/* Y axis — rotated; name on inner track (x=12), poles on outer track (x=38) */}
-              <text className="axname"
-                transform={`translate(12,${H / 2}) rotate(-90)`}
-                textAnchor="middle" style={{ fontSize: fs(12) }}>
-                {ay.name || ''}
-              </text>
-              <text className="pole"
-                transform={`translate(38,${(M + H / 2) / 2}) rotate(-90)`}
-                textAnchor="middle" style={{ fontSize: fs(12) }}
-                {...poleProps('yhigh', ay.high, ay.highDesc)}>
-                ↑ {ay.high || ''}
-              </text>
-              <text className="pole"
-                transform={`translate(38,${(H / 2 + H - M) / 2}) rotate(-90)`}
-                textAnchor="middle" style={{ fontSize: fs(12) }}
-                {...poleProps('ylow', ay.low, ay.lowDesc)}>
-                ↓ {ay.low || ''}
-              </text>
             </>
           );
         })()}
@@ -376,7 +354,7 @@ export default function StoryMap({
                 )}
               </g>
               {ld.show && (
-                <text className={'dlab' + (you ? ' me' : '')} textAnchor="middle" y={you ? 38 : 24} style={{ fontSize: fs(you ? 13 : 11) }}>
+                <text className={'dlab' + (you ? ' me' : '')} textAnchor="middle" y={you ? 38 : (isMobile ? -18 : 24)} style={{ fontSize: fs(you ? 13 : 11) }}>
                   {you
                     ? <tspan x={lx} dy="0">You</tspan>
                     : testDot
@@ -412,14 +390,16 @@ export default function StoryMap({
         })()}
       </svg>
 
-      {/* ── Mobile axis labels + quad legend (below SVG) ── */}
+      {/* ── Y-low label below SVG (always) ── */}
+      {ay.low && (
+        <div className="map-y-low" style={{ display: 'block' }}>
+          {mPole('ylow', '↓', ay.low)}
+        </div>
+      )}
+
+      {/* ── Mobile: X-axis labels + quad legend (below SVG) ── */}
       {isMobile && (
         <div className="map-mobile-labels">
-          {ay.low && (
-            <div className="map-y-low">
-              {mPole('ylow', '↓', ay.low)}
-            </div>
-          )}
           <div className="map-x-row">
             {mPole('xlow', '←', ax.low)}
             {ax.name && <span className="map-axname-x">{ax.name}</span>}

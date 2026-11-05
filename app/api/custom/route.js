@@ -31,9 +31,11 @@ export async function POST(req) {
     const text = String(b.text || '').trim().slice(0, 140);
     if (!text) return NextResponse.json({ error: 'Decision text is required.' }, { status: 400 });
 
-    // Rate limit by IP
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
-    if (!rateCheck(ip)) return NextResponse.json({ error: 'Too many requests. Try again tomorrow.' }, { status: 429 });
+    // Rate limit by IP (skip in test/mock mode)
+    if (process.env.MOCK_CLAUDE !== '1') {
+      const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
+      if (!rateCheck(ip)) return NextResponse.json({ error: 'Too many requests. Try again tomorrow.' }, { status: 429 });
+    }
 
     // Try to match an existing card (unless caller forces custom path)
     if (!b.force) {

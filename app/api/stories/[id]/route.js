@@ -25,6 +25,9 @@ export async function PATCH(req, { params }) {
     if (typeof b.shared === 'boolean') {
       await q('update stories set shared=$2 where id=$1', [params.id, b.shared]);
     }
+    if (typeof b.arrow_effect === 'string' && ['Yes', 'A little', 'No'].includes(b.arrow_effect)) {
+      await q('update stories set arrow_effect=$2 where id=$1', [params.id, b.arrow_effect]);
+    }
     return NextResponse.json({ ok: true });
   } catch (e) { return fail(e); }
 }

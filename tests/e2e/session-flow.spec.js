@@ -131,7 +131,7 @@ test.describe.serial('Session flow', () => {
     const presenterPage = await adminCtx.newPage();
     await presenterPage.goto(`/present/${sessionId}`);
     // Presenter loads its own auth check — wait for the map area
-    await expect(presenterPage.locator('.bigcount, .mapwrap')).toBeVisible({ timeout: 10_000 });
+    await expect(presenterPage.locator('.bigcount, .mapwrap').first()).toBeVisible({ timeout: 10_000 });
 
     // Admin publishes so participant can see the map and presenter reveals
     await adminCtx.request.patch(`/api/admin/sessions/${sessionId}`, { data: { published: true } });
@@ -185,10 +185,11 @@ test.describe.serial('Session flow', () => {
     // Count SVG lines before drawing (there might be none)
     const presenterPage = await adminCtx.newPage();
     await presenterPage.goto(`/present/${sessionId}`);
-    await expect(presenterPage.locator('.mapwrap svg')).toBeVisible({ timeout: 10_000 });
+    await expect(presenterPage.locator('.bigcount, .mapwrap').first()).toBeVisible({ timeout: 10_000 });
     // Ensure map is revealed (may already be from previous test)
     const revealBtn = presenterPage.getByRole('button', { name: 'Reveal the map' });
     if (await revealBtn.isVisible({ timeout: 1000 }).catch(() => false)) await revealBtn.click();
+    await expect(presenterPage.locator('.mapwrap svg')).toBeVisible({ timeout: 5000 });
 
     // Draw the arrow on the participant side
     await drawArrow(page);

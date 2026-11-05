@@ -5,7 +5,7 @@ import BrandBar from './BrandBar';
 import LoadingBar from './LoadingBar';
 import FictioneeringBlock from './FictioneeringBlock';
 import { artSvg, decision, signalIcon } from '@/lib/cards';
-import { questions } from '@/lib/questions';
+import { questions, directionContext } from '@/lib/questions';
 
 function inlineMd(text) {
   return text.split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/).map((part, i) => {
@@ -153,6 +153,7 @@ export default function Flow({ mode, id }) {
   const [emailStatus, setEmailStatus] = useState('idle'); // idle | sending | sent | error
   const [myQsData, setMyQsData] = useState(null); // null = use template
   const [myQsLoading, setMyQsLoading] = useState(false);
+  const [arrowEffect, setArrowEffect] = useState(null); // 'Yes' | 'A little' | 'No' | null
   const [showMap, setShowMap] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [timerBanner, setTimerBanner] = useState('');
@@ -400,6 +401,14 @@ export default function Flow({ mode, id }) {
     } catch {}
     setMyQsLoading(false);
   }
+  async function saveArrowEffect(v) {
+    setArrowEffect(v);
+    if (!mine) return;
+    await fetch(`/api/stories/${mine.story.id}`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: mine.token, arrow_effect: v }),
+    }).catch(() => {});
+  }
   async function toggleShared(v) {
     if (!mine) return;
     setSharedStory(v);
@@ -523,6 +532,7 @@ export default function Flow({ mode, id }) {
       {stage === 'write' && (
         <section className="stage">
           <div className="stage-head" style={{ marginBottom: 10 }}>
+            {(s.bigQuestion || dec.q) && <h3>{s.bigQuestion || dec.q}</h3>}
             <p className="scene">{lead}</p>
             {s.ask && context && <p className="note center" style={{ marginTop: 4 }}><button type="button" className="textlink change" onClick={() => setStage('scene')}>Change</button></p>}
             <p className="anchor">{ANCHOR}</p>
@@ -636,6 +646,14 @@ export default function Flow({ mode, id }) {
                 )}
               </div>
             </div>
+            {/* Primary CTA: answer questions — shown directly under the map as soon as arrow/stay is set */}
+            {stage === 'map' && me && me.x != null && (me.arrow || me.stays) && (
+              <div className="center" style={{ marginTop: 10, marginBottom: 2 }}>
+                <button className="big primary" type="button" onClick={() => { setQi(0); setStage('think'); }}>
+                  Answer 5 questions about your arrow →
+                </button>
+              </div>
+            )}
             {/* Mobile-only drawing controls appear directly under the map */}
             {stage === 'map' && drawing && (
               <div className="draw-mobile-hint">
@@ -665,7 +683,6 @@ export default function Flow({ mode, id }) {
                 {!drawing ? (
                   <div className="stack" style={{ marginTop: 6 }}>
                     <button className="big primary" type="button" onClick={() => { setDrawing(true); setPeek(null); scrollToMap(); }}>{me.arrow || me.stays ? 'Redraw my arrow' : "Draw where you'd rather be"}</button>
-                    {(me.arrow || me.stays) && <button className="big" type="button" onClick={() => { setQi(0); setStage('think'); }}>Think it through →</button>}
                   </div>
                 ) : (
                   <div className="stack draw-desktop-hint" style={{ marginTop: 6 }}>
@@ -695,6 +712,11 @@ export default function Flow({ mode, id }) {
                   <LoadingBar stages={QUESTIONS_STAGES} />
                 ) : (
                   <>
+                    {qi === 0 && me && (me.arrow || me.stays) && map && map.axes && (
+                      <p className="context-line" style={{ font: '13px var(--body)', color: 'var(--sage)', margin: '0 0 10px' }}>
+                        {directionContext(map.axes, me)}
+                      </p>
+                    )}
                     <div className="qdots">
                       {myQs.map((_, i) => <span key={i} className={i <= qi ? 'on' : ''} />)}
                     </div>
@@ -715,6 +737,22 @@ export default function Flow({ mode, id }) {
               <div className="stack">
                 <h3>A narrative only runs if nothing interrupts it.</h3>
                 <p className="sub">You just drew the interrupt.</p>
+                {mine && (
+                  <div style={{ borderTop: '1px solid var(--frame)', paddingTop: 14, marginTop: 2 }}>
+                    <p style={{ font: '14px var(--body)', color: 'var(--sage)', margin: '0 0 10px' }}>
+                      Did drawing the arrow change how you see this decision?
+                    </p>
+                    {arrowEffect ? (
+                      <p style={{ font: '13px var(--body)', color: 'var(--sage)', margin: 0 }}>You said: {arrowEffect}</p>
+                    ) : (
+                      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                        {['Yes', 'A little', 'No'].map((v) => (
+                          <button key={v} type="button" className="ghost" style={{ fontSize: 14 }} onClick={() => saveArrowEffect(v)}>{v}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="endcards">
                   {!isSession && <button type="button" className="endcard" onClick={restart}><strong>Write another</strong>Same question, new story.</button>}
                   <a className="endcard" href="/"><strong>Try a different decision</strong>Four more cards are waiting.</a>

@@ -7,6 +7,7 @@ const { E2E_PROMPT_SLUG, submitStory, waitForMap, drawArrow } = require('./helpe
 
 // Helper: complete the full flow to the "end" stage and return the page.
 async function reachEndStage(page) {
+  await page.goto('/');
   await page.evaluate(() =>
     Object.keys(localStorage)
       .filter((k) => k.startsWith('sm-'))
@@ -24,8 +25,11 @@ async function reachEndStage(page) {
 
   await drawArrow(page);
 
-  await expect(page.getByRole('button', { name: 'Think it through' })).toBeVisible({ timeout: 8000 });
-  await page.getByRole('button', { name: 'Think it through' }).click();
+  await expect(page.getByRole('button', { name: /Answer 5 questions about your arrow/ })).toBeVisible({ timeout: 8000 });
+  await page.getByRole('button', { name: /Answer 5 questions about your arrow/ }).click();
+
+  // Wait for questions to load (guard against the arrow-save / questions-fetch race)
+  await expect(page.getByRole('button', { name: /Next question|Done/ })).toBeVisible({ timeout: 10_000 });
 
   // Click through all questions to reach the "Done" button
   const nextBtn = page.getByRole('button', { name: 'Next question' });
@@ -58,6 +62,7 @@ test.describe('Email (MOCK mode)', () => {
 
   test('API POST /api/stories/{id}/email returns {ok:true} in MOCK mode', async ({ page, request }) => {
     // Complete flow to get mine token
+    await page.goto('/');
     await page.evaluate(() =>
       Object.keys(localStorage)
         .filter((k) => k.startsWith('sm-'))
@@ -92,6 +97,7 @@ test.describe('Email (MOCK mode)', () => {
     expect(sessionId).toBeTruthy();
 
     // Navigate to the visitor session and complete the flow
+    await page.goto('/');
     await page.evaluate(() =>
       Object.keys(localStorage)
         .filter((k) => k.startsWith('sm-'))

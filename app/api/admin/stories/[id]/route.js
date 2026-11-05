@@ -10,6 +10,10 @@ export async function PATCH(req, { params }) {
   if (!isAdmin()) return denied();
   try {
     const b = await req.json().catch(() => ({}));
+    if (typeof b.show_public === 'boolean') {
+      await q('update stories set show_public=$2 where id=$1', [params.id, b.show_public]);
+      return NextResponse.json({ ok: true });
+    }
     if (b.arrow !== undefined || b.stays !== undefined) {
       if (b.stays) await q('update stories set ax=null, ay=null, stays=true where id=$1', [params.id]);
       else if (b.arrow) await q('update stories set ax=$2, ay=$3, stays=false where id=$1', [params.id, clamp(b.arrow.x), clamp(b.arrow.y)]);

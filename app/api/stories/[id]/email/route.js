@@ -225,7 +225,7 @@ export async function POST(req, { params }) {
     const html = buildHtml(story, session, questions, baseUrl);
     const subject = `Your story: ${story.headline || 'Story Map'}`;
 
-    if (process.env.MOCK_CLAUDE === '1' && !process.env.RESEND_API_KEY) {
+    if (process.env.MOCK_CLAUDE === '1') {
       console.log('\n--- MOCK EMAIL ---');
       console.log('To:', email);
       console.log('Subject:', subject);
