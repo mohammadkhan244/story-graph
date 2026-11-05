@@ -2,16 +2,23 @@
 
 ## Testing policy
 
-After every change, run `npm run test:e2e` and fix all failures before reporting the work as done.
-Include the pass/fail summary (e.g. "18 passed, 0 failed") in your reply.
+**Only run E2E tests when explicitly asked.** When asked, run only the spec file(s) related to the
+change — not the whole suite. Reply with only "X passed, Y failed" plus a one-line reason per
+failure. Never paste full test output.
+
 **Never run tests against production or Neon.** E2E tests use the embedded Postgres started by
 `global-setup.js` — no manual database setup is required. The test runner refuses to start if
 `TEST_DATABASE_URL` contains `neon.tech` or matches `DATABASE_URL`.
 
+When tests fail: read only the first failing test's error message. Make at most 2 fix attempts,
+then stop and report what's failing rather than continuing to guess.
+
 ### Running the tests
 
 ```
-npm run test:e2e
+npm run test:e2e                                        # full suite
+npm run test:quick                                      # home + card-flow only
+npx playwright test tests/e2e/card-flow.spec.js        # single spec
 ```
 
 `global-setup.js` automatically starts an embedded Postgres on port 5544, applies the schema, and

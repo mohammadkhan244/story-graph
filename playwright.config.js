@@ -1,6 +1,28 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 const { EMBEDDED_URL } = require('./tests/e2e/db-config');
+
+// Skip `npm run build` when .next is already newer than source files.
+function needsBuild() {
+  const nextDir = path.join(__dirname, '.next');
+  if (!fs.existsSync(nextDir)) return true;
+  const nextMtime = fs.statSync(nextDir).mtimeMs;
+  function maxMtime(dir) {
+    if (!fs.existsSync(dir)) return 0;
+    return fs.readdirSync(dir).reduce((mx, f) => {
+      const fp = path.join(dir, f);
+      const st = fs.statSync(fp);
+      return Math.max(mx, st.isDirectory() ? maxMtime(fp) : st.mtimeMs);
+    }, 0);
+  }
+  const srcMtime = Math.max(...['app', 'components', 'lib', 'public'].map(d =>
+    maxMtime(path.join(__dirname, d))
+  ));
+  return srcMtime > nextMtime;
+}
+const BUILD_CMD = needsBuild() ? 'npm run build && npm start' : 'npm start';
 
 // Default to the embedded Postgres started by global-setup. Only override
 // TEST_DATABASE_URL if you explicitly want a different local/staging DB.
@@ -30,15 +52,16 @@ const TEST_ADMIN_PW = process.env.TEST_ADMIN_PASSWORD || 'e2e-test-secret';
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
-  retries: process.env.CI ? 2 : 0,
+  timeout: 30_000,
+  expect: { timeout: 5_000 },
+  retries: 0,
   fullyParallel: false,
-  workers: 1,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  workers: 2,
+  reporter: [['dot']],
   use: {
     baseURL: BASE_URL,
-    trace: 'on-first-retry',
+    trace: 'off',
+    video: 'off',
     screenshot: 'only-on-failure',
   },
   projects: [
@@ -47,7 +70,7 @@ module.exports = defineConfig({
   globalSetup: require.resolve('./tests/e2e/global-setup.js'),
   globalTeardown: require.resolve('./tests/e2e/global-teardown.js'),
   webServer: {
-    command: 'npm run build && npm start',
+    command: BUILD_CMD,
     url: BASE_URL,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,

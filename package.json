@@ -5,7 +5,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:quick": "playwright test tests/e2e/home.spec.js tests/e2e/card-flow.spec.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

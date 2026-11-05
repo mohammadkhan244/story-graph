@@ -187,12 +187,6 @@ export default function StoryMap({
 
   return (
     <>
-      {/* ── Y-high label above SVG (always) ── */}
-      <div className="map-y-high" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {ay.name && <span className="map-axname-badge" style={{ order: -1 }}>{ay.name}</span>}
-        {mPole('yhigh', '↑', ay.high)}
-      </div>
-
       <svg ref={svgRef}
         className={'map' + (drawing ? ' drawing' : '') + (big ? ' big' : '') + (reveal ? ' reveal' : '')}
         viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Map of ${n} stories`} {...surface}
@@ -208,6 +202,37 @@ export default function StoryMap({
         <rect className="frame" x={M} y={M} width={W - 2 * M} height={H - 2 * M} />
         <line className="axis" x1={px(0)} y1={M} x2={px(0)} y2={H - M} />
         <line className="axis" x1={M} y1={py(0)} x2={W - M} y2={py(0)} />
+
+        {/* Y-axis pole labels — rotated vertical, left of the frame (desktop only) */}
+        {!isMobile && (() => {
+          const lh = fs(13) * 1.3;
+          const cx = M / 2;
+          function yLabel(id, arrow, text, cy, pProps) {
+            if (!text) return null;
+            const lines = wrapSvg(`${arrow} ${text}`, 20);
+            const totalH = (lines.length - 1) * lh;
+            return (
+              <g key={id} transform={`translate(${cx} ${cy}) rotate(-90)`} {...pProps}>
+                <text className="pole" textAnchor="middle" style={{ fontSize: fs(13) }}>
+                  {lines.map((ln, k) => (
+                    <tspan key={k} x={0} dy={k === 0 ? -totalH / 2 : lh}>{ln}</tspan>
+                  ))}
+                </text>
+              </g>
+            );
+          }
+          return (
+            <>
+              {yLabel('yhigh', '↑', ay.high, (M + H / 2) / 2, poleProps('yhigh', ay.high, ay.highDesc))}
+              {yLabel('ylow', '↓', ay.low, (H / 2 + H - M) / 2, poleProps('ylow', ay.low, ay.lowDesc))}
+              {ay.name && (
+                <g transform={`translate(12 ${H / 2}) rotate(-90)`}>
+                  <text className="axname" textAnchor="middle" style={{ fontSize: fs(11) }}>{ay.name}</text>
+                </g>
+              )}
+            </>
+          );
+        })()}
 
         {/* Quad corner names — desktop only; mobile shows them in the legend below */}
         {!isMobile && quads && (() => {
@@ -390,16 +415,16 @@ export default function StoryMap({
         })()}
       </svg>
 
-      {/* ── Y-low label below SVG (always) ── */}
-      {ay.low && (
-        <div className="map-y-low" style={{ display: 'block' }}>
-          {mPole('ylow', '↓', ay.low)}
-        </div>
-      )}
-
-      {/* ── Mobile: X-axis labels + quad legend (below SVG) ── */}
+      {/* ── Mobile: axis labels + quad legend (below SVG) ── */}
       {isMobile && (
         <div className="map-mobile-labels">
+          {(ay.high || ay.low || ay.name) && (
+            <div className="map-y-row">
+              {ay.name && <span className="map-axname-badge">{ay.name}</span>}
+              {mPole('yhigh', '↑', ay.high)}
+              {mPole('ylow', '↓', ay.low)}
+            </div>
+          )}
           <div className="map-x-row">
             {mPole('xlow', '←', ax.low)}
             {ax.name && <span className="map-axname-x">{ax.name}</span>}
