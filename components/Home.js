@@ -44,7 +44,7 @@ export default function Home() {
       .filter((s) => s.cards.length);
     const extra = data.prompts.filter((p) => !used.has(p.slug));
     for (let i = 0; i < extra.length; i += 4) out.push({ label: 'More', cards: extra.slice(i, i + 4) });
-    return [...customSets, ...out];
+    return [...out, ...customSets];
   }, [data]);
 
   function pick(p) {
