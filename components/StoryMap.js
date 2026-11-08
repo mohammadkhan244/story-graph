@@ -2,16 +2,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { SHAPES } from '@/lib/cards';
 
-/* Brand map: ink field, sage dots, your dot is the one ruby signal on screen.
-   Signals are told apart by shape, card-exercise stories by hollow dots. */
-const W = 640, H = 640, M = 70;
+/* Brand map: ink field, sage dots, your dot is the one ruby signal on screen. */
+const W = 640, H = 640, M = 28;
 const px = (x) => M + ((x + 5) / 10) * (W - 2 * M);
 const py = (y) => H - M - ((y + 5) / 10) * (H - 2 * M);
 const unpx = (v) => ((v - M) / (W - 2 * M)) * 10 - 5;
 const unpy = (v) => ((H - M - v) / (H - 2 * M)) * 10 - 5;
 const r1 = (v) => Math.max(-5, Math.min(5, Math.round(v * 10) / 10));
 const short = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
-// Word-wrap text into lines of at most maxChars — no truncation, all text shows.
 function wrapSvg(text, maxChars = 28) {
   if (!text) return [];
   const words = text.split(' ');
@@ -25,12 +23,9 @@ function wrapSvg(text, maxChars = 28) {
   if (line) lines.push(line);
   return lines;
 }
-function labelLines(label, maxChars = 15) {
-  return wrapSvg(label, maxChars);
-}
+function labelLines(label, maxChars = 15) { return wrapSvg(label, maxChars); }
 export const fmt = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(Number(n) || 0).toFixed(1);
 
-/* Kept for the admin legend: signals map to sage tones + a shape. */
 const TONES = ['#afbeb1', '#d4dfdc', '#79998b', '#b8cdc4', '#8d9d9d'];
 export function signalColors(points) {
   const tags = [];
@@ -82,7 +77,7 @@ export default function StoryMap({
   const [draft, setDraft] = useState(null);
   const [tooltipPole, setTooltipPole] = useState(null);
   const [svgWidth, setSvgWidth] = useState(W);
-  const [tapLabel, setTapLabel] = useState(null);   // mobile: id of dot whose name is showing
+  const [tapLabel, setTapLabel] = useState(null);
   const ax = (axes && axes.x) || {}, ay = (axes && axes.y) || {};
   const isMobile = svgWidth < 640;
 
@@ -94,7 +89,6 @@ export default function StoryMap({
     return () => ro.disconnect();
   }, []);
 
-  // fs(base) → the SVG font-size that renders as at least 13px on screen
   const scale = svgWidth / W;
   const fs = (base) => Math.ceil(Math.max(base, 13 / Math.max(scale, 0.05)));
 
@@ -105,19 +99,22 @@ export default function StoryMap({
     return () => window.removeEventListener('keydown', handler);
   }, [tooltipPole]);
 
-  function poleProps(id, name, desc) {
-    if (!desc) return {};
+  /* HTML pole label — renders text; if desc provided, toggles description on click */
+  function htmlPole(id, text, desc) {
+    if (!text) return null;
     const active = tooltipPole === id;
-    return {
-      role: 'button',
-      tabIndex: 0,
-      style: { cursor: 'pointer', textDecoration: active ? 'underline' : 'none' },
-      'aria-label': `${name}: ${desc}`,
-      onClick: (e) => { e.stopPropagation(); setTooltipPole(active ? null : id); },
-      onKeyDown: (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setTooltipPole(active ? null : id); }
-      },
-    };
+    if (!desc) return <>{text}</>;
+    return (
+      <span className={'map-pole-html' + (active ? ' open' : '')}
+        role="button" tabIndex={0}
+        aria-expanded={active}
+        aria-label={`${text}: ${desc}`}
+        onClick={(e) => { e.stopPropagation(); setTooltipPole(active ? null : id); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTooltipPole(active ? null : id); } }}>
+        {text}
+        {active && <span className="map-pole-desc">{desc}</span>}
+      </span>
+    );
   }
 
   const { shape } = signalColors(points);
@@ -137,8 +134,6 @@ export default function StoryMap({
     onPointerUp: (e) => { const d = toXY(e); setDraft(null); onArrow(arrowFor, d); },
   } : {};
 
-  // ── Label placement: x-clamping ─────────────────────────────────────────────
-  // Returns Map<id, {show: boolean, cx: number}> where cx is clamped absolute x in SVG.
   const ordered = [...points].sort((a, b) => (a.id === youId) - (b.id === youId));
   const labelMap = new Map();
   {
@@ -163,7 +158,6 @@ export default function StoryMap({
       labelMap.set(p.id, { show: true, cx });
     }
 
-    // Priority: you → selected → rest
     const youPt = points.find((p) => p.id === youId);
     const selPt = selId && selId !== youId ? points.find((p) => p.id === selId) : null;
     if (youPt) tryLabel(youPt);
@@ -173,24 +167,23 @@ export default function StoryMap({
     }
   }
 
-  // Mobile: render a pole label span — full text, CSS handles wrapping
-  function mPole(id, arrow, text, align) {
-    if (!text) return null;
-    return (
-      <span key={id} className="map-pole-label" style={{ textAlign: align || 'left' }} aria-label={text}>
-        {arrow} {text}
-      </span>
-    );
-  }
-
   const n = points.length;
 
   return (
-    <>
+    <div className="map-layout" onClick={() => { tooltipPole && setTooltipPole(null); }}>
+
+      {/* ── Above the plot: y-axis name + high pole ── */}
+      {axes && (ay.name || ay.high) && (
+        <div className="map-axis-top">
+          {ay.name && <span className="map-y-name">{ay.name}</span>}
+          {ay.high && <span className="map-y-high">{htmlPole('yhigh', '↑ ' + ay.high, ay.highDesc)}</span>}
+        </div>
+      )}
+
       <svg ref={svgRef}
         className={'map' + (drawing ? ' drawing' : '') + (big ? ' big' : '') + (reveal ? ' reveal' : '')}
         viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Map of ${n} stories`} {...surface}
-        onClick={() => { if (!drawing) { tooltipPole && setTooltipPole(null); tapLabel && setTapLabel(null); } }}>
+        onClick={(e) => { if (!drawing) { tapLabel && setTapLabel(null); } }}>
 
         {/* Grid */}
         {[...Array(11)].map((_, i) => (
@@ -203,85 +196,34 @@ export default function StoryMap({
         <line className="axis" x1={px(0)} y1={M} x2={px(0)} y2={H - M} />
         <line className="axis" x1={M} y1={py(0)} x2={W - M} y2={py(0)} />
 
-        {/* Y-axis pole labels — rotated vertical, left of the frame (desktop only) */}
-        {!isMobile && (() => {
-          const lh = fs(13) * 1.3;
-          const cx = M / 2;
-          function yLabel(id, arrow, text, cy, pProps) {
-            if (!text) return null;
-            const lines = wrapSvg(`${arrow} ${text}`, 20);
-            const totalH = (lines.length - 1) * lh;
-            return (
-              <g key={id} transform={`translate(${cx} ${cy}) rotate(-90)`} {...pProps}>
-                <text className="pole" textAnchor="middle" style={{ fontSize: fs(13) }}>
-                  {lines.map((ln, k) => (
-                    <tspan key={k} x={0} dy={k === 0 ? -totalH / 2 : lh}>{ln}</tspan>
-                  ))}
-                </text>
-              </g>
-            );
-          }
-          return (
-            <>
-              {yLabel('yhigh', '↑', ay.high, (M + H / 2) / 2, poleProps('yhigh', ay.high, ay.highDesc))}
-              {yLabel('ylow', '↓', ay.low, (H / 2 + H - M) / 2, poleProps('ylow', ay.low, ay.lowDesc))}
-              {ay.name && (
-                <g transform={`translate(12 ${H / 2}) rotate(-90)`}>
-                  <text className="axname" textAnchor="middle" style={{ fontSize: fs(11) }}>{ay.name}</text>
-                </g>
-              )}
-            </>
-          );
-        })()}
-
-        {/* Quad corner names — desktop only; mobile shows them in the legend below */}
+        {/* Quad corner names — desktop only; mobile shows 2×2 legend below */}
         {!isMobile && quads && (() => {
-          const lh = fs(14) * 1.2;
+          const lh = fs(12) * 1.3;
+          const ix = M + 8;
           return (
             <>
-              <text className="qlab" x={M + 10} textAnchor="start" style={{ fontSize: fs(14) }}>
-                {wrapSvg(quads.lh || '', 22).map((ln, k) => <tspan key={k} x={M + 10} dy={k === 0 ? M + 16 : lh}>{ln}</tspan>)}
+              <text className="qlab" x={ix} textAnchor="start" style={{ fontSize: fs(12) }}>
+                {wrapSvg(quads.lh || '', 20).map((ln, k) => <tspan key={k} x={ix} dy={k === 0 ? M + 14 : lh}>{ln}</tspan>)}
               </text>
-              <text className="qlab" x={W - M - 10} textAnchor="end" style={{ fontSize: fs(14) }}>
-                {wrapSvg(quads.hh || '', 22).map((ln, k) => <tspan key={k} x={W - M - 10} dy={k === 0 ? M + 16 : lh}>{ln}</tspan>)}
+              <text className="qlab" x={W - ix} textAnchor="end" style={{ fontSize: fs(12) }}>
+                {wrapSvg(quads.hh || '', 20).map((ln, k) => <tspan key={k} x={W - ix} dy={k === 0 ? M + 14 : lh}>{ln}</tspan>)}
               </text>
               {(() => {
-                const llLines = wrapSvg(quads.ll || '', 22);
-                const hlLines = wrapSvg(quads.hl || '', 22);
+                const llLines = wrapSvg(quads.ll || '', 20);
+                const hlLines = wrapSvg(quads.hl || '', 20);
                 const maxBotLines = Math.max(llLines.length, hlLines.length);
-                const botStartY = H - M - 12 - (maxBotLines - 1) * lh;
+                const botStartY = H - M - 8 - (maxBotLines - 1) * lh;
                 return (
                   <>
-                    <text className="qlab" x={M + 10} textAnchor="start" style={{ fontSize: fs(14) }}>
-                      {llLines.map((ln, k) => <tspan key={k} x={M + 10} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
+                    <text className="qlab" x={ix} textAnchor="start" style={{ fontSize: fs(12) }}>
+                      {llLines.map((ln, k) => <tspan key={k} x={ix} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
                     </text>
-                    <text className="qlab" x={W - M - 10} textAnchor="end" style={{ fontSize: fs(14) }}>
-                      {hlLines.map((ln, k) => <tspan key={k} x={W - M - 10} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
+                    <text className="qlab" x={W - ix} textAnchor="end" style={{ fontSize: fs(12) }}>
+                      {hlLines.map((ln, k) => <tspan key={k} x={W - ix} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
                     </text>
                   </>
                 );
               })()}
-            </>
-          );
-        })()}
-
-        {/* X-axis labels — desktop only; mobile shows all axis labels as HTML below */}
-        {!isMobile && (() => {
-          const lowLines = wrapSvg(`← ${ax.low || ''}`, 30);
-          const highLines = wrapSvg(`${ax.high || ''} →`, 30);
-          const lh = fs(13) * 1.3;
-          const poleLines = Math.max(lowLines.length, highLines.length);
-          const poleY = H - M + 18;
-          const nameY = poleY + (poleLines - 1) * lh + 20;
-          return (
-            <>
-              <text className="pole" x={M} y={poleY} style={{ fontSize: fs(13) }} {...poleProps('xlow', ax.low, ax.lowDesc)}>
-                {lowLines.map((ln, k) => <tspan key={k} x={M} dy={k === 0 ? 0 : lh}>{ln}</tspan>)}
-              </text>
-              <text className="pole" x={W - M} y={poleY} textAnchor="end" style={{ fontSize: fs(13) }} {...poleProps('xhigh', ax.high, ax.highDesc)}>
-                {highLines.map((ln, k) => <tspan key={k} x={W - M} dy={k === 0 ? 0 : lh}>{ln}</tspan>)}
-              </text>
-              <text className="axname" x={W / 2} y={nameY} textAnchor="middle" style={{ fontSize: fs(13) }}>{ax.name || ''}</text>
             </>
           );
         })()}
@@ -340,7 +282,7 @@ export default function StoryMap({
           const testDot = !!p.isTest;
           const ld = labelMap.get(p.id) || { show: false, cx: px(x) };
           const lines = labelLines(p.label || '');
-          const lx = ld.cx - px(x); // relative x offset for text (clamped)
+          const lx = ld.cx - px(x);
           return (
             <g key={p.id} className={'dot' + (you ? ' you' : '') + (onMove ? ' drag' : '')}
               tabIndex={drawing ? -1 : 0} role="button"
@@ -390,56 +332,31 @@ export default function StoryMap({
             </g>
           );
         })}
-
-        {/* Pole tooltip (desktop only) */}
-        {!isMobile && tooltipPole && (() => {
-          const TW = 240, TH = 80;
-          const poles = {
-            xlow:  ax.lowDesc  ? { label: ax.low,  desc: ax.lowDesc,  tx: M,      ty: H - M - 10 } : null,
-            xhigh: ax.highDesc ? { label: ax.high, desc: ax.highDesc, tx: W - M,  ty: H - M - 10, end: true } : null,
-            ylow:  ay.lowDesc  ? { label: ay.low,  desc: ay.lowDesc,  tx: M,  ty: (H / 2 + H - M) / 2 } : null,
-            yhigh: ay.highDesc ? { label: ay.high, desc: ay.highDesc, tx: M,  ty: (M + H / 2) / 2 } : null,
-          };
-          const tp = poles[tooltipPole];
-          if (!tp) return null;
-          const fx = tp.end ? Math.max(M, tp.tx - TW) : Math.min(W - M - TW, tp.tx);
-          const fy = Math.max(M, tp.ty - TH - 8);
-          return (
-            <foreignObject x={fx} y={fy} width={TW} height={TH} style={{ overflow: 'visible' }}>
-              <div style={{ background: '#1a2326', border: '1px solid #344245', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#b8cdc4', lineHeight: 1.45, pointerEvents: 'none' }}>
-                <strong style={{ fontFamily: 'var(--labelf)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#d4dfdc', display: 'block', marginBottom: 4 }}>{tp.label}</strong>
-                {tp.desc}
-              </div>
-            </foreignObject>
-          );
-        })()}
       </svg>
 
-      {/* ── Mobile: axis labels + quad legend (below SVG) ── */}
-      {isMobile && (
-        <div className="map-mobile-labels">
-          {(ay.high || ay.low || ay.name) && (
-            <div className="map-y-row">
-              {ay.name && <span className="map-axname-badge">{ay.name}</span>}
-              {mPole('yhigh', '↑', ay.high)}
-              {mPole('ylow', '↓', ay.low)}
-            </div>
-          )}
-          <div className="map-x-row">
-            {mPole('xlow', '←', ax.low)}
-            {ax.name && <span className="map-axname-x">{ax.name}</span>}
-            {mPole('xhigh', '', ax.high ? ax.high + ' →' : '', 'right')}
-          </div>
-          {quads && (
-            <div className="map-quad-legend" role="list" aria-label="Quadrant names">
-              <div role="listitem">↖ {quads.lh}</div>
-              <div role="listitem" style={{ textAlign: 'right' }}>↗ {quads.hh}</div>
-              <div role="listitem">↙ {quads.ll}</div>
-              <div role="listitem" style={{ textAlign: 'right' }}>↘ {quads.hl}</div>
-            </div>
-          )}
+      {/* ── Below the plot: y-axis low pole ── */}
+      {axes && ay.low && (
+        <div className="map-y-low">{htmlPole('ylow', '↓ ' + ay.low, ay.lowDesc)}</div>
+      )}
+
+      {/* ── Below that: x-axis row ── */}
+      {axes && (ax.low || ax.name || ax.high) && (
+        <div className="map-x-row">
+          {ax.low && <span className="map-pole-left">{htmlPole('xlow', '← ' + ax.low, ax.lowDesc)}</span>}
+          {ax.name && <span className="map-x-name">{ax.name}</span>}
+          {ax.high && <span className="map-pole-right">{htmlPole('xhigh', ax.high + ' →', ax.highDesc)}</span>}
         </div>
       )}
-    </>
+
+      {/* ── Mobile only: 2×2 quad legend ── */}
+      {isMobile && quads && (
+        <div className="map-quad-legend" role="list" aria-label="Quadrant names">
+          <div role="listitem">↖ {quads.lh}</div>
+          <div role="listitem" style={{ textAlign: 'right' }}>↗ {quads.hh}</div>
+          <div role="listitem">↙ {quads.ll}</div>
+          <div role="listitem" style={{ textAlign: 'right' }}>↘ {quads.hl}</div>
+        </div>
+      )}
+    </div>
   );
 }
