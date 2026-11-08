@@ -467,7 +467,7 @@ export default function Flow({ mode, id }) {
       {stage === 'closed' && (
         <section className="stage center" style={{ gap: 18, paddingTop: 40 }}>
           <div className="icon-badge" dangerouslySetInnerHTML={{ __html: artSvg(slug) }} />
-          <h3>{s.bigQuestion || dec.q}</h3>
+          <h3>{s.bigQuestion || s.title || dec.q}</h3>
           <p className="sub">Writing hasn't started yet. This page opens by itself when it does.</p>
         </section>
       )}
