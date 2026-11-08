@@ -172,11 +172,13 @@ export default function StoryMap({
   return (
     <div className="map-layout" onClick={() => { tooltipPole && setTooltipPole(null); }}>
 
-      {/* ── Above the plot: y-axis name + high pole ── */}
-      {axes && (ay.name || ay.high) && (
+      {/* y-axis name: grid-area ylabel, vertically centered left of the plot */}
+      {axes && ay.name && <span className="map-y-name">{ay.name}</span>}
+
+      {/* above plot: y-axis high pole only */}
+      {axes && ay.high && (
         <div className="map-axis-top">
-          {ay.name && <span className="map-y-name">{ay.name}</span>}
-          {ay.high && <span className="map-y-high">{htmlPole('yhigh', '↑ ' + ay.high, ay.highDesc)}</span>}
+          <span className="map-y-high">{htmlPole('yhigh', '↑ ' + ay.high, ay.highDesc)}</span>
         </div>
       )}
 
@@ -339,14 +341,16 @@ export default function StoryMap({
         <div className="map-y-low">{htmlPole('ylow', '↓ ' + ay.low, ay.lowDesc)}</div>
       )}
 
-      {/* ── Below that: x-axis row ── */}
-      {axes && (ax.low || ax.name || ax.high) && (
-        <div className="map-x-row">
+      {/* x-axis poles: left and right, spaced apart */}
+      {axes && (ax.low || ax.high) && (
+        <div className="map-x-poles">
           {ax.low && <span className="map-pole-left">{htmlPole('xlow', '← ' + ax.low, ax.lowDesc)}</span>}
-          {ax.name && <span className="map-x-name">{ax.name}</span>}
           {ax.high && <span className="map-pole-right">{htmlPole('xhigh', ax.high + ' →', ax.highDesc)}</span>}
         </div>
       )}
+
+      {/* x-axis name: centered on its own row at the axis midpoint */}
+      {axes && ax.name && <div className="map-x-name">{ax.name}</div>}
 
       {/* ── Mobile only: 2×2 quad legend ── */}
       {isMobile && quads && (

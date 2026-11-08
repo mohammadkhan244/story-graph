@@ -259,21 +259,43 @@ svg.map.drawing { cursor: crosshair; touch-action: none; }
 /* what-if arrow label in SVG */
 .whatif-lbl { font: 600 10px var(--labelf); letter-spacing: .1em; text-transform: uppercase; fill: var(--steel); }
 
-/* map layout: HTML labels above/below the SVG, never rotated */
-.map-layout { display: flex; flex-direction: column; }
-.map-axis-top { display: flex; flex-direction: column; gap: 2px; padding-bottom: 6px; }
-.map-y-name { font: 600 12px var(--labelf); font-variant: small-caps; letter-spacing: .1em; color: var(--sage); }
+/* map layout: y-name left column (grid-area ylabel), x-name centered below */
+.map-layout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    ".      top"
+    "ylabel svg"
+    ".      ylow"
+    ".      xpoles"
+    ".      xname"
+    ".      quad";
+}
+.map-axis-top { grid-area: top; padding-bottom: 6px; }
+.map-y-name {
+  grid-area: ylabel;
+  align-self: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font: 600 11px var(--labelf);
+  font-variant: small-caps;
+  letter-spacing: .1em;
+  color: var(--sage);
+  padding-right: 8px;
+  white-space: nowrap;
+}
+.map-layout > svg { grid-area: svg; }
 .map-y-high { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); }
-.map-y-low { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); padding-top: 5px; }
-.map-x-row { display: flex; align-items: baseline; gap: 4px; padding-top: 4px; }
-.map-pole-left { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); flex: none; white-space: nowrap; }
-.map-pole-right { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); flex: none; white-space: nowrap; margin-left: auto; }
-.map-x-name { flex: 1; text-align: center; font: 600 11px var(--labelf); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-y-low { grid-area: ylow; font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); padding-top: 5px; }
+.map-x-poles { grid-area: xpoles; display: flex; justify-content: space-between; padding-top: 4px; }
+.map-pole-left { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); white-space: nowrap; }
+.map-pole-right { font: 600 12px var(--labelf); letter-spacing: .06em; color: var(--note); white-space: nowrap; }
+.map-x-name { grid-area: xname; text-align: center; font: 600 11px var(--labelf); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
 .map-pole-html[role="button"] { cursor: pointer; border-bottom: 1px dashed currentColor; opacity: .82; }
 .map-pole-html[role="button"]:hover { opacity: 1; }
 .map-pole-html[role="button"]:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; border-radius: 2px; }
 .map-pole-desc { display: block; font: 400 12px var(--body); color: var(--muted); letter-spacing: 0; text-transform: none; margin-top: 3px; line-height: 1.4; }
-.map-quad-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font: 400 11px var(--labelf); color: var(--sage-deep); letter-spacing: .02em; padding-top: 6px; border-top: 1px solid var(--frame); margin-top: 4px; word-break: break-word; }
+.map-quad-legend { grid-area: quad; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font: 400 11px var(--labelf); color: var(--sage-deep); letter-spacing: .02em; padding-top: 6px; border-top: 1px solid var(--frame); margin-top: 4px; word-break: break-word; }
 
 /* questions list (admin + presenter) */
 .qs-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; list-style: decimal; }
