@@ -76,12 +76,14 @@ export default function Home() {
     <main>
       <BrandBar />
       <section className="home-head">
-        <h1>Find out what story is controlling your decisions.</h1>
+        <h1>Test a big decision<br /><span style={{color:"var(--sage)"}}>before you have to live with it.</span></h1>
+        <p className="home-subline">A 10-minute writing exercise that shows what spreadsheets miss.</p>
         <ol className="howto" aria-label="How it works">
-          <li><span className="howto-n">1</span><strong>Pick a decision</strong><span>One you’re facing, or one your team keeps circling.</span></li>
-          <li><span className="howto-n">2</span><strong>Write for 10 minutes</strong><span>A day in that future. No planning, no polish.</span></li>
-          <li><span className="howto-n">3</span><strong>See where you land</strong><span>Your story on a map next to everyone else’s, then draw where you’d rather be.</span></li>
+          <li><span className="howto-n">1</span><strong>Pick a decision</strong></li>
+          <li><span className="howto-n">2</span><strong>Write for 10 minutes</strong></li>
+          <li><span className="howto-n">3</span><strong>See where you land</strong></li>
         </ol>
+        <p className="howto-example">A founder planning a move abroad wrote a day in his new city. The loneliness he was leaving showed up in the story anyway.</p>
       </section>
       <h2 className="pick-head">What decision are you facing?</h2>
       {err && <p className="warn center">{err}</p>}
@@ -123,7 +125,7 @@ export default function Home() {
       {cur && !customOpen && (
         <p style={{ textAlign: 'center', marginTop: 20 }}>
           <button type="button" className="textlink" onClick={() => { setCustomOpen(true); setCustomResult(null); setCustomErr(''); }}>
-            My decision isn't here →
+            Facing a different decision? Write your own →
           </button>
         </p>
       )}
@@ -161,10 +163,14 @@ export default function Home() {
           </p>
         </div>
       )}
-      {data && data.past.length > 0 && (
+      {data && data.past.filter(s => !s.archived && s.n > 0).length > 0 && (
         <footer className="foot">
-          <span>Maps from live sessions:</span>
-          <span className="row">{data.past.map((s) => <a key={s.id} href={`/s/${s.id}`}>{s.title}</a>)}</span>
+          <span>See where others landed in past sessions:</span>
+          <span className="row">
+            {data.past.filter(s => !s.archived && s.n > 0).map((s) => (
+              <a key={s.id} href={`/m/${s.id}`}>{s.title}</a>
+            ))}
+          </span>
         </footer>
       )}
     </main>

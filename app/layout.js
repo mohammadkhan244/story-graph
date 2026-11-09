@@ -2,12 +2,12 @@ import './globals.css';
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://story-graph-three.vercel.app'),
-  title: 'Story Map',
-  description: 'Find out what story is controlling your decisions. Write for ten minutes, see where your story lands.',
+  title: "Story Map · Test a big decision before you have to live with it",
+  description: "A 10-minute writing exercise that shows what spreadsheets miss.",
   openGraph: {
-    title: 'Story Map · Find the story running your decisions',
-    description: 'Pick a decision you’re facing. Write for ten minutes. See where your story lands among everyone else’s.',
-    type: 'website',
+    title: "Story Map · Test a big decision before you have to live with it",
+    description: "A 10-minute writing exercise that shows what spreadsheets miss.",
+    type: "website",
   },
   twitter: { card: 'summary_large_image' },
 };
