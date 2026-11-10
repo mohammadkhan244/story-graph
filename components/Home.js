@@ -31,7 +31,7 @@ export default function Home() {
     const customCards = (data.featured || []).map((s) => ({
       ...s,
       // Link to parent card's /p/<slug> for live sessions with a parent, else /p/<slug> or /s/<id>
-      href: s.parent_slug ? `/p/${s.parent_slug}` : s.slug ? `/p/${s.slug}` : `/s/${s.id}`,
+      href: s.parent_slug ? `/p/${s.parent_slug}` : s.slug ? `/p/${s.slug}` : `/m/${s.id}`,
     }));
     const customSets = [];
     for (let i = 0; i < customCards.length; i += 4) {
