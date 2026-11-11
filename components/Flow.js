@@ -142,6 +142,7 @@ export default function Flow({ mode, id }) {
   const [readingResult, setReadingResult] = useState(null);
   const [readingStageVal, setReadingStageVal] = useState('');
   const [readingLens, setReadingLens] = useState('');
+  const [readingCardIdx, setReadingCardIdx] = useState(0);
   const [testMode, setTestMode] = useState(false);
   const [fillIdx, setFillIdx] = useState(0);
   const [resumeMode, setResumeMode] = useState(false);
@@ -161,6 +162,7 @@ export default function Flow({ mode, id }) {
   const taRef = useRef(null);
   const mapRef = useRef(null);
   const bannerTimer = useRef(null);
+  const readingTouchX = useRef(null);
   const lastEndsAt = useRef(undefined);
   const lastPausedAt = useRef(undefined);
   const readingKey = `sm-reading-${mode}-${id}`;
@@ -340,6 +342,7 @@ export default function Flow({ mode, id }) {
       if (!r.ok) { setReadingStage('picking'); setMsg(j.error || 'Could not get reading.'); return; }
       ls.set(readingKey, j.reading);
       setReadingResult(j.reading);
+      setReadingCardIdx(0);
       setReadingStage('done');
     } catch (e) { setReadingStage('picking'); setMsg(String(e.message || e)); }
   }
@@ -367,7 +370,7 @@ export default function Flow({ mode, id }) {
       setNotes(ls.get('sm-notes-' + mine.story.id) || {});
       setPastArrows(ls.get(arrowsKey) || []);
       const saved = ls.get(readingKey);
-      if (saved) { setReadingResult(saved); setReadingStage('done'); }
+      if (saved) { setReadingResult(saved); setReadingCardIdx(0); setReadingStage('done'); }
       const savedQs = ls.get(questionsKey);
       if (savedQs) setMyQsData(savedQs);
       setSharedStory(mine.story.shared ?? false);
@@ -779,7 +782,10 @@ export default function Flow({ mode, id }) {
                       <div className="stack" style={{ gap: 12 }}>
                         <strong style={{ font: '400 20px var(--title)', color: 'var(--paper)', display: 'block' }}>Keep your story</strong>
                         {emailStatus === 'sent' ? (
-                          <p className="ok" style={{ margin: 0 }}>Sent. Check your inbox.</p>
+                          <div>
+                            <p className="ok" style={{ margin: 0 }}>Sent. Check your inbox.</p>
+                            <p className="note" style={{ marginTop: 8, fontSize: 13 }}>Didn't receive it? Check spam, or <button type="button" className="textlink" onClick={() => setEmailStatus('idle')}>try a different email</button>.</p>
+                          </div>
                         ) : (
                           <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <div>
@@ -828,9 +834,10 @@ export default function Flow({ mode, id }) {
                         ))}
                       </div>
                       <div>
-                        <label htmlFor="rlens" className="note">A lens or worldview to read it through (optional)</label>
+                        <label htmlFor="rlens" className="note">Read it through a specific lens (optional)</label>
                         <input id="rlens" value={readingLens} onChange={(e) => setReadingLens(e.target.value)}
-                          placeholder="e.g. stoicism, systems thinking…" maxLength={200} />
+                          placeholder="e.g. stoicism, systems thinking, startup founder…" maxLength={200} />
+                        <p className="note" style={{ fontSize: 12, margin: '5px 0 0', lineHeight: 1.5 }}>Names a framework or role — the reading will interpret your story from inside that lens instead of a neutral frame.</p>
                       </div>
                       <div className="row">
                         <button type="button" className="big primary" disabled={!readingStageVal} onClick={fetchReading}>Read my story</button>
@@ -858,7 +865,7 @@ export default function Flow({ mode, id }) {
                       return { header, body };
                     }).filter((s) => s.header && s.body.trim());
                     let oneMoveText = '';
-                    const renderedSections = sections.map((sec) => {
+                    const baseSections = sections.map((sec) => {
                       let body = sec.body;
                       if (sec.header.startsWith('PART 8')) {
                         const omIdx = body.search(/\bONE MOVE\b/);
@@ -866,25 +873,30 @@ export default function Flow({ mode, id }) {
                       }
                       return { ...sec, body };
                     });
+                    const cards = [...baseSections];
+                    if (oneMoveText) cards.push({ header: 'ONE MOVE', body: oneMoveText, isOneMove: true });
+                    const ci = Math.min(readingCardIdx, Math.max(0, cards.length - 1));
+                    const card = cards[ci];
+                    if (!card) return null;
                     return (
-                      <div className="reading-sections">
-                        {renderedSections.map(({ header, body }) => {
-                          const isPart8 = header.startsWith('PART 8');
-                          return (
-                            <details key={header} className={'reading-section' + (isPart8 ? ' highlight' : '')} open={isPart8 || undefined}>
-                              <summary>{header}</summary>
-                              <div className="reading-body">
-                                {renderMd(body)}
-                              </div>
-                            </details>
-                          );
-                        })}
-                        {oneMoveText && (
-                          <div className="one-move-card">
-                            <span className="kicker">One Move</span>
-                            <p>{oneMoveText}</p>
-                          </div>
-                        )}
+                      <div className="reading-cards"
+                        onTouchStart={(e) => { readingTouchX.current = e.touches[0].clientX; }}
+                        onTouchEnd={(e) => {
+                          if (readingTouchX.current === null) return;
+                          const dx = e.changedTouches[0].clientX - readingTouchX.current;
+                          readingTouchX.current = null;
+                          if (dx > 50 && ci > 0) setReadingCardIdx(ci - 1);
+                          else if (dx < -50 && ci < cards.length - 1) setReadingCardIdx(ci + 1);
+                        }}>
+                        <div className={'reading-card' + (card.isOneMove ? ' reading-card-onemove' : card.header.startsWith('PART 8') ? ' reading-card-highlight' : '')}>
+                          <span className="kicker" style={{ display: 'block', marginBottom: 10 }}>{card.header}</span>
+                          <div className="reading-body">{renderMd(card.body)}</div>
+                        </div>
+                        <div className="reading-card-nav">
+                          <button type="button" className="quiet" disabled={ci === 0} onClick={() => setReadingCardIdx(ci - 1)}>←</button>
+                          <span className="note" style={{ fontSize: 13 }}>{ci + 1} / {cards.length}</span>
+                          <button type="button" className="quiet" disabled={ci === cards.length - 1} onClick={() => setReadingCardIdx(ci + 1)}>→</button>
+                        </div>
                       </div>
                     );
                   })()}

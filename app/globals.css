@@ -248,6 +248,12 @@ svg.map.drawing { cursor: crosshair; touch-action: none; }
 .one-move-card { background: rgba(167,47,57,.12); border: 1px solid rgba(167,47,57,.35); border-radius: 12px; padding: 18px; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
 .one-move-card .kicker { color: var(--ruby); }
 .one-move-card p { font-size: 14px; line-height: 1.6; color: var(--label); margin: 0; }
+.reading-cards { display: flex; flex-direction: column; gap: 10px; touch-action: pan-y; }
+.reading-card { background: rgba(175,190,177,.06); border: 1px solid var(--frame); border-radius: 10px; padding: 18px 18px 14px; min-height: 180px; }
+.reading-card.reading-card-highlight { background: rgba(121,153,139,.07); border-color: rgba(121,153,139,.4); }
+.reading-card.reading-card-onemove { background: rgba(167,47,57,.10); border-color: rgba(167,47,57,.35); }
+.reading-card.reading-card-onemove .kicker { color: var(--ruby); }
+.reading-card-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 /* loading bar */
 .lbar { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 400px; }
