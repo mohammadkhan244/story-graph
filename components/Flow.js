@@ -836,43 +836,6 @@ export default function Flow({ mode, id }) {
                   </div>
                 )}
                 <p className="note workshop-note" style={{ marginTop: 4 }}>Facing this decision as a team? <a className="textlink" href="https://engineering-workshops.themohammadkhan.com/?utm_source=story-map">Run it in a workshop →</a></p>
-                {mine && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--frame)', paddingTop: 18 }}>
-                    <div className="panel" style={{ borderRadius: 12, padding: '20px 20px 18px' }}>
-                      <div className="stack" style={{ gap: 12 }}>
-                        <strong style={{ font: '400 20px var(--title)', color: 'var(--paper)', display: 'block' }}>Keep your story</strong>
-                        {emailStatus === 'sent' ? (
-                          <div>
-                            <p className="ok" style={{ margin: 0 }}>Sent. Check your inbox.</p>
-                            <p className="note" style={{ marginTop: 8, fontSize: 13 }}>Didn't receive it? Check spam, or <button type="button" className="textlink" onClick={() => setEmailStatus('idle')}>try a different email</button>.</p>
-                          </div>
-                        ) : (
-                          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div>
-                              <label htmlFor="em-email">Email</label>
-                              <input id="em-email" type="email" value={emailAddr} onChange={(e) => setEmailAddr(e.target.value)}
-                                placeholder="you@example.com" autoComplete="email" disabled={emailStatus === 'sending'} />
-                            </div>
-                            <label className="check">
-                              <input type="checkbox" checked={emailFollowUp} onChange={(e) => setEmailFollowUp(e.target.checked)} />
-                              Want me to follow up with you about this?
-                            </label>
-                            <div className="hp" aria-hidden="true">
-                              <input tabIndex={-1} autoComplete="off" value={emailHp} onChange={(e) => setEmailHp(e.target.value)} />
-                            </div>
-                            <div>
-                              <button className="big primary" type="submit" disabled={emailStatus === 'sending' || !emailAddr.trim()}>
-                                {emailStatus === 'sending' ? 'Sending...' : 'Email it to me'}
-                              </button>
-                              {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
-                            </div>
-                            <p className="note" style={{ margin: 0 }}>We'll email your story and reading. No newsletter unless you ask.</p>
-                          </form>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
                 <div className="reading-panel">
                   {readingStage === 'idle' && (
                     <button type="button" className="endcard reading-cta" onClick={() => setReadingStage('picking')}>
@@ -901,12 +864,6 @@ export default function Flow({ mode, id }) {
                             <strong>{label}</strong>{desc}
                           </button>
                         ))}
-                      </div>
-                      <div>
-                        <label htmlFor="rlens" className="note">Read it through a specific lens (optional)</label>
-                        <input id="rlens" value={readingLens} onChange={(e) => setReadingLens(e.target.value)}
-                          placeholder="e.g. stoicism, systems thinking, startup founder…" maxLength={200} />
-                        <p className="note" style={{ fontSize: 12, margin: '5px 0 0', lineHeight: 1.5 }}>Names a framework or role — the reading will interpret your story from inside that lens instead of a neutral frame.</p>
                       </div>
                       <div className="row">
                         <button type="button" className="big primary" disabled={!readingStageVal} onClick={fetchReading}>Read my story</button>
@@ -946,7 +903,7 @@ export default function Flow({ mode, id }) {
                     if (oneMoveText) cards.push({ header: 'ONE MOVE', body: oneMoveText, isOneMove: true });
                     const ci = Math.min(readingCardIdx, Math.max(0, cards.length - 1));
                     const card = cards[ci];
-                    if (!card) return null;
+                    if (!card) return <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Try getting your reading again</button>;
                     return (
                       <div className="reading-cards"
                         onTouchStart={(e) => { readingTouchX.current = e.touches[0].clientX; }}
@@ -970,6 +927,43 @@ export default function Flow({ mode, id }) {
                     );
                   })()}
                 </div>
+                {mine && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--frame)', paddingTop: 18 }}>
+                    <div className="panel" style={{ borderRadius: 12, padding: '20px 20px 18px' }}>
+                      <div className="stack" style={{ gap: 12 }}>
+                        <strong style={{ font: '400 20px var(--title)', color: 'var(--paper)', display: 'block' }}>Keep your story</strong>
+                        {emailStatus === 'sent' ? (
+                          <div>
+                            <p className="ok" style={{ margin: 0 }}>Sent. Check your inbox.</p>
+                            <p className="note" style={{ marginTop: 8, fontSize: 13 }}>Didn't receive it? Check spam, or <button type="button" className="textlink" onClick={() => setEmailStatus('idle')}>try a different email</button>.</p>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div>
+                              <label htmlFor="em-email">Email</label>
+                              <input id="em-email" type="email" value={emailAddr} onChange={(e) => setEmailAddr(e.target.value)}
+                                placeholder="you@example.com" autoComplete="email" disabled={emailStatus === 'sending'} />
+                            </div>
+                            <label className="check">
+                              <input type="checkbox" checked={emailFollowUp} onChange={(e) => setEmailFollowUp(e.target.checked)} />
+                              Want me to follow up with you about this?
+                            </label>
+                            <div className="hp" aria-hidden="true">
+                              <input tabIndex={-1} autoComplete="off" value={emailHp} onChange={(e) => setEmailHp(e.target.value)} />
+                            </div>
+                            <div>
+                              <button className="big primary" type="submit" disabled={emailStatus === 'sending' || !emailAddr.trim()}>
+                                {emailStatus === 'sending' ? 'Sending...' : 'Email it to me'}
+                              </button>
+                              {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
+                            </div>
+                            <p className="note" style={{ margin: 0 }}>We'll email your story and reading. No newsletter unless you ask.</p>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {mine && <FictioneeringBlock prefillEmail={emailAddr} />}
               </div>
             )}

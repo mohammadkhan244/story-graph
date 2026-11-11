@@ -270,13 +270,9 @@ export default function MapView({ id }) {
           <p style={{ margin: 0, font: '400 22px/1.25 var(--title)', maxWidth: '28ch', textWrap: 'balance' }}>See where your story lands</p>
           <p className="note" style={{ margin: 0, fontSize: 14 }}>10 minutes of writing. Your dot appears next to these.</p>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            {ctaSlug ? (
+            {ctaSlug && (
               <a href={`/p/${ctaSlug}`} style={{ display: 'inline-block', padding: '14px 32px', background: 'var(--ruby-site)', color: 'var(--paper)', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 15, letterSpacing: '0.01em' }}>
                 Write about this decision →
-              </a>
-            ) : (
-              <a href="/" style={{ display: 'inline-block', padding: '14px 32px', background: 'var(--ruby-site)', color: 'var(--paper)', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 15, letterSpacing: '0.01em' }}>
-                Pick a decision to write about →
               </a>
             )}
             <a href="/" className="textlink">Pick a different decision</a>
@@ -287,11 +283,11 @@ export default function MapView({ id }) {
         </div>
       </div>
 
-      <div className={`sticky-cta${ctaVisible ? ' out' : ''}`}>
-        <a href={ctaSlug ? `/p/${ctaSlug}` : '/'}>
-          {ctaSlug ? 'Write about this decision →' : 'Pick a decision to write about →'}
-        </a>
-      </div>
+      {ctaSlug && (
+        <div className={`sticky-cta${ctaVisible ? ' out' : ''}`}>
+          <a href={`/p/${ctaSlug}`}>Write about this decision →</a>
+        </div>
+      )}
     </main>
   );
 }
