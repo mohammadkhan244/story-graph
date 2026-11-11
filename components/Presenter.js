@@ -188,6 +188,7 @@ export default function Presenter({ id }) {
               <div className="row">
                 <input type="number" min={1} max={60} value={mins} onChange={(e) => setMins(e.target.value)} style={{ width: 80 }} aria-label="Minutes" />
                 <button type="button" onClick={() => patch({ start: true, minutes: mins })}>Start {mins}-min timer</button>
+                <button type="button" className="quiet" onClick={() => patch({ open: true })}>Open</button>
                 {open && endsAt && !paused && (
                   <button type="button" className="quiet" onClick={() => patch({ pause: true })}>Pause</button>
                 )}
