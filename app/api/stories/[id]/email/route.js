@@ -220,9 +220,11 @@ export async function POST(req, { params }) {
       [newId(), params.id, email, followUp],
     );
 
-    // Generate reading if not already present (best-effort — email sends regardless)
+    // Use client-provided reading when available; otherwise check DB, then generate
     let emailStory = story;
-    if (!story.reading && story.body) {
+    if (b.readingRaw && typeof b.readingRaw === 'string' && b.readingRaw.length > 100) {
+      emailStory = { ...story, reading: { raw: b.readingRaw } };
+    } else if (!story.reading && story.body) {
       try {
         const reading = await generateReading(story, session);
         if (reading) emailStory = { ...story, reading };

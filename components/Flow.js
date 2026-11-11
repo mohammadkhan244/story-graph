@@ -481,7 +481,7 @@ export default function Flow({ mode, id }) {
       const r = await fetch(`/api/stories/${mine.story.id}/email`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token: mine.token, email: emailAddr.trim(), follow_up: emailFollowUp, website: emailHp }),
+        body: JSON.stringify({ token: mine.token, email: emailAddr.trim(), follow_up: emailFollowUp, website: emailHp, readingRaw: readingResult?.raw || null }),
       });
       const j = await r.json();
       if (!r.ok) { setEmailStatus('error'); return; }
@@ -890,23 +890,12 @@ export default function Flow({ mode, id }) {
                   {readingStage === 'done' && readingResult && (() => {
                     const raw = readingResult.raw || '';
                     const chunks = ('## ' + raw.replace(/^\s*## /, '')).split(/\n(?=## )/);
-                    const sections = chunks.map((chunk) => {
+                    const cards = chunks.map((chunk) => {
                       const nl = chunk.indexOf('\n');
                       const header = (nl === -1 ? chunk : chunk.slice(0, nl)).replace(/^## /, '').trim();
                       const body = nl === -1 ? '' : chunk.slice(nl + 1).trim();
                       return { header, body };
                     }).filter((s) => s.header && s.body.trim());
-                    let oneMoveText = '';
-                    const baseSections = sections.map((sec) => {
-                      let body = sec.body;
-                      if (sec.header.startsWith('PART 8')) {
-                        const omIdx = body.search(/\bONE MOVE\b/);
-                        if (omIdx !== -1) { oneMoveText = body.slice(omIdx + 8).trim(); body = body.slice(0, omIdx).trim(); }
-                      }
-                      return { ...sec, body };
-                    });
-                    const cards = [...baseSections];
-                    if (oneMoveText) cards.push({ header: 'ONE MOVE', body: oneMoveText, isOneMove: true });
                     const ci = Math.min(readingCardIdx, Math.max(0, cards.length - 1));
                     const card = cards[ci];
                     if (!card) return <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Try getting your reading again</button>;
@@ -920,7 +909,7 @@ export default function Flow({ mode, id }) {
                           if (dx > 50 && ci > 0) setReadingCardIdx(ci - 1);
                           else if (dx < -50 && ci < cards.length - 1) setReadingCardIdx(ci + 1);
                         }}>
-                        <div className={'reading-card' + (card.isOneMove ? ' reading-card-onemove' : card.header.startsWith('PART 8') ? ' reading-card-highlight' : '')}>
+                        <div className={'reading-card' + (card.header.startsWith('PART 3') ? ' reading-card-highlight' : '')}>
                           <span className="kicker" style={{ display: 'block', marginBottom: 10 }}>{card.header}</span>
                           <div className="reading-body">{renderMd(card.body)}</div>
                         </div>
@@ -943,32 +932,30 @@ export default function Flow({ mode, id }) {
                             <p className="ok" style={{ margin: 0 }}>Sent. Check your inbox.</p>
                             <p className="note" style={{ marginTop: 8, fontSize: 13 }}>Didn't receive it? Check spam, or <button type="button" className="textlink" onClick={() => setEmailStatus('idle')}>try a different email</button>.</p>
                           </div>
+                        ) : emailStatus === 'sending' ? (
+                          <LoadingBar stages={EMAIL_STAGES} />
                         ) : (
-                          {emailStatus === 'sending' ? (
-                            <LoadingBar stages={EMAIL_STAGES} />
-                          ) : (
-                            <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                              <div>
-                                <label htmlFor="em-email">Email</label>
-                                <input id="em-email" type="email" value={emailAddr} onChange={(e) => setEmailAddr(e.target.value)}
-                                  placeholder="you@example.com" autoComplete="email" />
-                              </div>
-                              <label className="check">
-                                <input type="checkbox" checked={emailFollowUp} onChange={(e) => setEmailFollowUp(e.target.checked)} />
-                                Want me to follow up with you about this?
-                              </label>
-                              <div className="hp" aria-hidden="true">
-                                <input tabIndex={-1} autoComplete="off" value={emailHp} onChange={(e) => setEmailHp(e.target.value)} />
-                              </div>
-                              <div>
-                                <button className="big primary" type="submit" disabled={!emailAddr.trim()}>
-                                  Email it to me
-                                </button>
-                                {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
-                              </div>
-                              <p className="note" style={{ margin: 0 }}>We'll email your story and reading. No newsletter unless you ask.</p>
-                            </form>
-                          )}
+                          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div>
+                              <label htmlFor="em-email">Email</label>
+                              <input id="em-email" type="email" value={emailAddr} onChange={(e) => setEmailAddr(e.target.value)}
+                                placeholder="you@example.com" autoComplete="email" />
+                            </div>
+                            <label className="check">
+                              <input type="checkbox" checked={emailFollowUp} onChange={(e) => setEmailFollowUp(e.target.checked)} />
+                              Want me to follow up with you about this?
+                            </label>
+                            <div className="hp" aria-hidden="true">
+                              <input tabIndex={-1} autoComplete="off" value={emailHp} onChange={(e) => setEmailHp(e.target.value)} />
+                            </div>
+                            <div>
+                              <button className="big primary" type="submit" disabled={!emailAddr.trim()}>
+                                Email it to me
+                              </button>
+                              {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
+                            </div>
+                            <p className="note" style={{ margin: 0 }}>We'll email your story and reading. No newsletter unless you ask.</p>
+                          </form>
                         )}
                       </div>
                     </div>
