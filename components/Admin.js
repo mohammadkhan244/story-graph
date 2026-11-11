@@ -366,7 +366,7 @@ export default function Admin() {
           {s && (
             <section className="panel stack">
               <h2>Axes</h2>
-              <button disabled={busy || stories.length < 2} onClick={() => act(async () => {
+              <button disabled={busy} onClick={() => act(async () => {
                 const j = await api(`/api/admin/sessions/${s.id}/axes`, 'POST');
                 setCands(j.cands);
                 const [i, k] = j.pair;
