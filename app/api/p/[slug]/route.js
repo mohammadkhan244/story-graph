@@ -7,8 +7,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(_req, { params }) {
   try {
-    let s = (await q("select * from sessions where slug=$1 and kind in ('open','visitor')", [params.slug]))[0];
-    if (!s) s = (await q("select * from sessions where id=$1 and kind in ('open','visitor')", [params.slug]))[0];
+    let s = (await q("select * from sessions where slug=$1 and kind in ('open','visitor','session')", [params.slug]))[0];
+    if (!s) s = (await q("select * from sessions where id=$1 and kind in ('open','visitor','session')", [params.slug]))[0];
     if (!s) return NextResponse.json({ error: 'Prompt not found' }, { status: 404 });
     return NextResponse.json({ session: publicSession(s), map: await promptMap(s) });
   } catch (e) { return fail(e); }
