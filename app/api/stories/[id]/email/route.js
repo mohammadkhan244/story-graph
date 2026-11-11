@@ -224,6 +224,10 @@ export async function POST(req, { params }) {
     let emailStory = story;
     if (b.readingRaw && typeof b.readingRaw === 'string' && b.readingRaw.length > 100) {
       emailStory = { ...story, reading: { raw: b.readingRaw } };
+      // Persist to DB if nothing cached yet — keeps on-site in sync with email
+      if (!story.reading) {
+        await q('update stories set reading=$1 where id=$2', [JSON.stringify({ raw: b.readingRaw }), story.id]).catch(() => {});
+      }
     } else if (!story.reading && story.body) {
       try {
         const reading = await generateReading(story, session);
