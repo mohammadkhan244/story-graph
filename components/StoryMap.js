@@ -26,6 +26,35 @@ function wrapSvg(text, maxChars = 28) {
 function labelLines(label, maxChars = 15) { return wrapSvg(label, maxChars); }
 export const fmt = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(Number(n) || 0).toFixed(1);
 
+function spreadOverlaps(points, threshold = 0.4, radius = 0.4) {
+  const clusters = [];
+  const pointCluster = new Map();
+  const sorted = [...points]
+    .filter((p) => p.x != null && p.y != null)
+    .sort((a, b) => a.id.localeCompare(b.id));
+  for (const p of sorted) {
+    let best = null, bestDist = Infinity;
+    for (const c of clusters) {
+      const d = Math.hypot(p.x - c.cx, p.y - c.cy);
+      if (d < threshold && d < bestDist) { best = c; bestDist = d; }
+    }
+    if (best) { best.members.push(p); pointCluster.set(p.id, best); }
+    else { const c = { cx: p.x, cy: p.y, members: [p] }; clusters.push(c); pointCluster.set(p.id, c); }
+  }
+  for (const c of clusters) {
+    c.cx = c.members.reduce((s, p) => s + p.x, 0) / c.members.length;
+    c.cy = c.members.reduce((s, p) => s + p.y, 0) / c.members.length;
+  }
+  return points.map((p) => {
+    if (p.x == null || p.y == null) return p;
+    const c = pointCluster.get(p.id);
+    if (!c || c.members.length < 2) return p;
+    const idx = c.members.indexOf(p);
+    const angle = (idx / c.members.length) * Math.PI * 2 - Math.PI / 2;
+    return { ...p, x: c.cx + radius * Math.cos(angle), y: c.cy + radius * Math.sin(angle) };
+  });
+}
+
 const TONES = ['#afbeb1', '#d4dfdc', '#79998b', '#b8cdc4', '#8d9d9d'];
 export function signalColors(points) {
   const tags = [];
@@ -80,6 +109,7 @@ export default function StoryMap({
   const [tapLabel, setTapLabel] = useState(null);
   const ax = (axes && axes.x) || {}, ay = (axes && axes.y) || {};
   const isMobile = svgWidth < 640;
+  const displayPoints = spreadOverlaps(points);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -127,14 +157,14 @@ export default function StoryMap({
   }
 
   const drawing = !!arrowFor && !!onArrow;
-  const origin = drawing ? points.find((p) => p.id === arrowFor) : null;
+  const origin = drawing ? displayPoints.find((p) => p.id === arrowFor) : null;
   const surface = drawing ? {
     onPointerDown: (e) => { e.currentTarget.setPointerCapture(e.pointerId); setDraft(toXY(e)); },
     onPointerMove: (e) => { if (draft) setDraft(toXY(e)); },
     onPointerUp: (e) => { const d = toXY(e); setDraft(null); onArrow(arrowFor, d); },
   } : {};
 
-  const ordered = [...points].sort((a, b) => (a.id === youId) - (b.id === youId));
+  const ordered = [...displayPoints].sort((a, b) => (a.id === youId) - (b.id === youId));
   const labelMap = new Map();
   {
     function tryLabel(p) {
@@ -162,8 +192,8 @@ export default function StoryMap({
       labelMap.set(p.id, { show: true, cx });
     }
 
-    const youPt = points.find((p) => p.id === youId);
-    const selPt = selId && selId !== youId ? points.find((p) => p.id === selId) : null;
+    const youPt = displayPoints.find((p) => p.id === youId);
+    const selPt = selId && selId !== youId ? displayPoints.find((p) => p.id === selId) : null;
     if (youPt) tryLabel(youPt);
     if (selPt) tryLabel(selPt);
     for (const p of ordered) {
@@ -247,13 +277,13 @@ export default function StoryMap({
         })()}
 
         {/* Other people's arrows — all when showArrows, or only the selected dot */}
-        {points.filter((p) => p.arrow && p.x != null && p.id !== youId && (showArrows || p.id === selId)).map((p) => (
+        {displayPoints.filter((p) => p.arrow && p.x != null && p.id !== youId && (showArrows || p.id === selId)).map((p) => (
           <Arrow key={'a' + p.id} id={'a' + p.id} from={p} to={p.arrow} color="#afbeb1" width={2} opacity={p.id === selId ? 0.85 : 0.45} />
         ))}
 
         {/* Your arrow */}
         {(() => {
-          const me = points.find((p) => p.id === youId);
+          const me = displayPoints.find((p) => p.id === youId);
           if (!me || me.x == null) return null;
           const head = drawing && arrowFor === youId && draft ? draft : (showArrows ? me.arrow : null);
           return head ? <Arrow id="mine" from={me} to={head} color="#fffdf6" width={3.5} /> : null;
@@ -264,7 +294,7 @@ export default function StoryMap({
 
         {/* What-if arrow */}
         {whatIfFor && whatIfTo && (() => {
-          const wif = points.find((p) => p.id === whatIfFor);
+          const wif = displayPoints.find((p) => p.id === whatIfFor);
           if (!wif || wif.x == null) return null;
           const mx = (px(wif.x) + px(whatIfTo.x)) / 2;
           const my = (py(wif.y) + py(whatIfTo.y)) / 2 - 12;
