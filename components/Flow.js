@@ -896,27 +896,17 @@ export default function Flow({ mode, id }) {
                       const body = nl === -1 ? '' : chunk.slice(nl + 1).trim();
                       return { header, body };
                     }).filter((s) => s.header && s.body.trim());
-                    const ci = Math.min(readingCardIdx, Math.max(0, cards.length - 1));
-                    const card = cards[ci];
-                    if (!card) return <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Try getting your reading again</button>;
+                    if (!cards.length) return <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Try getting your reading again</button>;
                     return (
-                      <div className="reading-cards"
-                        onTouchStart={(e) => { readingTouchX.current = e.touches[0].clientX; }}
-                        onTouchEnd={(e) => {
-                          if (readingTouchX.current === null) return;
-                          const dx = e.changedTouches[0].clientX - readingTouchX.current;
-                          readingTouchX.current = null;
-                          if (dx > 50 && ci > 0) setReadingCardIdx(ci - 1);
-                          else if (dx < -50 && ci < cards.length - 1) setReadingCardIdx(ci + 1);
-                        }}>
-                        <div className={'reading-card' + (card.header.startsWith('PART 3') ? ' reading-card-highlight' : '')}>
-                          <span className="kicker" style={{ display: 'block', marginBottom: 10 }}>{card.header}</span>
-                          <div className="reading-body">{renderMd(card.body)}</div>
-                        </div>
-                        <div className="reading-card-nav">
-                          <button type="button" className="quiet" disabled={ci === 0} onClick={() => setReadingCardIdx(ci - 1)}>←</button>
-                          <span className="note" style={{ fontSize: 13 }}>{ci + 1} / {cards.length}</span>
-                          <button type="button" className="quiet" disabled={ci === cards.length - 1} onClick={() => setReadingCardIdx(ci + 1)}>→</button>
+                      <div>
+                        <p className="note" style={{ margin: '0 0 10px', fontSize: 13 }}>The full reading will be in your email — expand any section to read it now.</p>
+                        <div className="reading-sections">
+                          {cards.map((c, i) => (
+                            <details key={i} className={'reading-section' + (c.header.startsWith('PART 3') ? ' highlight' : '')} open={i === 0}>
+                              <summary>{c.header}</summary>
+                              <div className="reading-body">{renderMd(c.body)}</div>
+                            </details>
+                          ))}
                         </div>
                       </div>
                     );
