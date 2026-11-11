@@ -533,7 +533,15 @@ export default function Flow({ mode, id }) {
         <section className="stage">
           <div className="stage-head" style={{ marginBottom: 10 }}>
             {(s.bigQuestion || dec.q) && <p className="kicker">{s.bigQuestion || dec.q}</p>}
-            <p className="scene">{lead}</p>
+            {(() => {
+              const parts = lead ? lead.split(/(?<=[.?])\s+(?=[A-Z])/).filter(Boolean) : [];
+              if (parts.length <= 1) return <p className="scene">{lead}</p>;
+              return (
+                <div className="scene-block">
+                  {parts.map((line, i) => <p key={i} className={i === 0 ? 'scene scene-ctx' : 'scene'}>{line}</p>)}
+                </div>
+              );
+            })()}
             {s.ask && context && <p className="note center" style={{ marginTop: 4 }}><button type="button" className="textlink change" onClick={() => setStage('scene')}>Change</button></p>}
             <p className="anchor">{ANCHOR}</p>
           </div>
