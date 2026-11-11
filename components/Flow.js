@@ -91,6 +91,12 @@ const READING_STAGES = [
   { target: 93, label: 'Finishing up…', detail: '', duration: 2500 },
   { target: 97, label: 'Still working…', detail: 'Claude is writing your reading. Can take up to 90 seconds.', duration: 65000 },
 ];
+const EMAIL_STAGES = [
+  { target: 35, label: 'Sending…', detail: '', duration: 600 },
+  { target: 70, label: 'Delivering…', detail: '', duration: 1200 },
+  { target: 88, label: 'Almost there…', detail: '', duration: 1800 },
+  { target: 94, label: 'Still sending…', detail: '', duration: 25000 },
+];
 const QUESTIONS_STAGES = [
   { target: 28, label: 'Reading your story…', detail: 'Understanding where you landed.', duration: 1200 },
   { target: 68, label: 'Writing your questions…', detail: 'Tailored to your story and direction.', duration: 2800 },
@@ -938,27 +944,31 @@ export default function Flow({ mode, id }) {
                             <p className="note" style={{ marginTop: 8, fontSize: 13 }}>Didn't receive it? Check spam, or <button type="button" className="textlink" onClick={() => setEmailStatus('idle')}>try a different email</button>.</p>
                           </div>
                         ) : (
-                          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div>
-                              <label htmlFor="em-email">Email</label>
-                              <input id="em-email" type="email" value={emailAddr} onChange={(e) => setEmailAddr(e.target.value)}
-                                placeholder="you@example.com" autoComplete="email" disabled={emailStatus === 'sending'} />
-                            </div>
-                            <label className="check">
-                              <input type="checkbox" checked={emailFollowUp} onChange={(e) => setEmailFollowUp(e.target.checked)} />
-                              Want me to follow up with you about this?
-                            </label>
-                            <div className="hp" aria-hidden="true">
-                              <input tabIndex={-1} autoComplete="off" value={emailHp} onChange={(e) => setEmailHp(e.target.value)} />
-                            </div>
-                            <div>
-                              <button className="big primary" type="submit" disabled={emailStatus === 'sending' || !emailAddr.trim()}>
-                                {emailStatus === 'sending' ? 'Sending...' : 'Email it to me'}
-                              </button>
-                              {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
-                            </div>
-                            <p className="note" style={{ margin: 0 }}>We'll email your story and reading. No newsletter unless you ask.</p>
-                          </form>
+                          {emailStatus === 'sending' ? (
+                            <LoadingBar stages={EMAIL_STAGES} />
+                          ) : (
+                            <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                              <div>
+                                <label htmlFor="em-email">Email</label>
+                                <input id="em-email" type="email" value={emailAddr} onChange={(e) => setEmailAddr(e.target.value)}
+                                  placeholder="you@example.com" autoComplete="email" />
+                              </div>
+                              <label className="check">
+                                <input type="checkbox" checked={emailFollowUp} onChange={(e) => setEmailFollowUp(e.target.checked)} />
+                                Want me to follow up with you about this?
+                              </label>
+                              <div className="hp" aria-hidden="true">
+                                <input tabIndex={-1} autoComplete="off" value={emailHp} onChange={(e) => setEmailHp(e.target.value)} />
+                              </div>
+                              <div>
+                                <button className="big primary" type="submit" disabled={!emailAddr.trim()}>
+                                  Email it to me
+                                </button>
+                                {emailStatus === 'error' && <p className="warn" style={{ margin: '8px 0 0' }}>Couldn't send. Try again.</p>}
+                              </div>
+                              <p className="note" style={{ margin: 0 }}>We'll email your story and reading. No newsletter unless you ask.</p>
+                            </form>
+                          )}
                         )}
                       </div>
                     </div>
