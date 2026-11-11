@@ -238,7 +238,14 @@ export async function POST(req, { params }) {
     }
 
     // Build and send email
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://story-map.themohammadkhan.com';
+    const _configured = process.env.NEXT_PUBLIC_BASE_URL || '';
+    const baseUrl = (_configured && !_configured.includes('localhost'))
+      ? _configured
+      : process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'https://story-map.themohammadkhan.com';
     const questions = getActiveQuestions(emailStory);
     const html = buildHtml(emailStory, session, questions, baseUrl);
     const headline = story.headline || '';
