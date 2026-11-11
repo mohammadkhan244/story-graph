@@ -147,6 +147,7 @@ export default function MapView({ id }) {
             selId={sel}
             onSelect={drawing ? undefined : (pid) => setSel(pid === sel ? null : pid)}
             showArrows={showArrows}
+            showLabels
             reveal
             arrowFor={drawing ? sel : null}
             onArrow={drawing ? ((_dotId, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
@@ -168,7 +169,7 @@ export default function MapView({ id }) {
                 {selP.headline && (
                   <strong style={{ font: '400 20px var(--title)', display: 'block', marginBottom: 4 }}>{selP.headline}</strong>
                 )}
-                <span className="kicker">{selP.label}</span>
+                <span className="kicker">{selP.label || 'Anonymous'}</span>
               </div>
               {arrowType && (
                 <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(175,190,177,0.18)', padding: '4px 10px', borderRadius: 20, color: '#afbeb1', whiteSpace: 'nowrap' }}>

@@ -147,9 +147,13 @@ export default function StoryMap({
         return;
       }
 
-      if (!(showLabels || you || sel)) { labelMap.set(p.id, { show: false, cx: 0 }); return; }
+      const hasLabel = you || p.isTest || !!(p.label && p.label.trim());
+      if (!(showLabels || you || sel) || (!you && !p.isTest && !hasLabel && !sel)) {
+        labelMap.set(p.id, { show: false, cx: 0 }); return;
+      }
 
       const lines = p.isTest ? ['TEST'] : you ? ['You'] : labelLines(p.label || '');
+      if (!lines.some((l) => l.trim())) { labelMap.set(p.id, { show: false, cx: 0 }); return; }
       const fsize = big ? 13 : (you ? 13 : 11);
       const maxLen = Math.max(...lines.map((l) => l.length), 1);
       const tw = maxLen * fsize * 0.62;

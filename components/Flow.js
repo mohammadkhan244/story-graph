@@ -16,13 +16,40 @@ function inlineMd(text) {
 }
 function renderMd(text) {
   const out = [];
-  let listItems = [], k = 0;
-  const flush = () => { if (listItems.length) { out.push(<ul key={k++} style={{ margin: '6px 0', paddingLeft: 20 }}>{listItems}</ul>); listItems = []; } };
+  let listItems = [], listOrdered = false, k = 0;
+  const flush = () => {
+    if (!listItems.length) return;
+    const Tag = listOrdered ? 'ol' : 'ul';
+    out.push(<Tag key={k++} style={{ margin: '6px 0', paddingLeft: 20 }}>{listItems}</Tag>);
+    listItems = [];
+  };
   for (const line of text.split('\n')) {
     const t = line.trim();
-    if (/^[-*]\s/.test(t)) { listItems.push(<li key={k++} style={{ marginBottom: 4 }}>{inlineMd(t.slice(2))}</li>); }
-    else if (/^\d+\.\s/.test(t)) { listItems.push(<li key={k++} style={{ marginBottom: 4 }}>{inlineMd(t.replace(/^\d+\.\s/, ''))}</li>); }
-    else { flush(); if (t) out.push(<p key={k++} style={{ margin: '0 0 10px' }}>{inlineMd(t)}</p>); }
+    // ### or #### sub-heading within a card body
+    if (/^#{2,4}\s/.test(t)) {
+      flush();
+      out.push(<p key={k++} className="reading-subhead">{inlineMd(t.replace(/^#+\s+/, ''))}</p>);
+    // ALL-CAPS standalone line like NAME IT / WHY IT MATTERS / THE EVIDENCE IN YOUR STORY
+    } else if (t.length >= 3 && t.length <= 55 && /^[A-Z][A-Z\s]+$/.test(t)) {
+      flush();
+      out.push(<p key={k++} className="reading-subhead">{t}</p>);
+    // ALL-CAPS label prefix like EYEWITNESS: / EXPLAINER: / EXPERT:
+    } else if (/^[A-Z]{3,}:\s+/.test(t)) {
+      flush();
+      const ci = t.indexOf(':');
+      const lbl = t.slice(0, ci);
+      const rest = t.slice(ci + 1).trim();
+      out.push(<p key={k++} style={{ margin: '0 0 10px' }}><span className="reading-subhead-inline">{lbl}: </span>{inlineMd(rest)}</p>);
+    } else if (/^[-*]\s/.test(t)) {
+      listOrdered = false;
+      listItems.push(<li key={k++} style={{ marginBottom: 4 }}>{inlineMd(t.slice(2))}</li>);
+    } else if (/^\d+\.\s/.test(t)) {
+      listOrdered = true;
+      listItems.push(<li key={k++} style={{ marginBottom: 4 }}>{inlineMd(t.replace(/^\d+\.\s/, ''))}</li>);
+    } else {
+      flush();
+      if (t) out.push(<p key={k++} style={{ margin: '0 0 10px' }}>{inlineMd(t)}</p>);
+    }
   }
   flush();
   return out;
@@ -62,6 +89,7 @@ const READING_STAGES = [
   { target: 64, label: 'Reading between the lines…', detail: 'Patterns, fears, desires.', duration: 2800 },
   { target: 80, label: 'Writing your reading…', detail: 'Eight sections, your story.', duration: 3200 },
   { target: 93, label: 'Finishing up…', detail: '', duration: 2500 },
+  { target: 97, label: 'Still working…', detail: 'Claude is writing your reading. Can take up to 90 seconds.', duration: 65000 },
 ];
 const QUESTIONS_STAGES = [
   { target: 28, label: 'Reading your story…', detail: 'Understanding where you landed.', duration: 1200 },
@@ -138,7 +166,8 @@ export default function Flow({ mode, id }) {
   const [notes, setNotes] = useState({});
   const [listening, setListening] = useState(false);
   const [reveal, setReveal] = useState(false);
-  const [readingStage, setReadingStage] = useState('idle'); // idle | picking | loading | done
+  const [readingStage, setReadingStage] = useState('idle'); // idle | picking | loading | done | error
+  const [qCardDismissed, setQCardDismissed] = useState(false);
   const [readingResult, setReadingResult] = useState(null);
   const [readingStageVal, setReadingStageVal] = useState('');
   const [readingLens, setReadingLens] = useState('');
@@ -183,7 +212,12 @@ export default function Flow({ mode, id }) {
       const sess = j.session;
 
       if (isSession) {
-        if (m) { setMine(m); setStage(j.map ? 'map' : 'waiting'); return; }
+        if (m) {
+          setMine(m);
+          const hasDir = m.story && (m.story.arrow || m.story.stays);
+          setStage(j.map ? (hasDir ? 'end' : 'map') : 'waiting');
+          return;
+        }
         if (!(sess.status === 'open')) { setStage('closed'); return; }
         if (d) { setContext(d.context || ''); setSignal(d.signal || null); setText(d.text || ''); setStartedAt(d.startedAt || null); }
         const needsScene = (sess.ask && !d?.context) || (sess.signals && sess.signals.length && !d?.signal);
@@ -317,6 +351,7 @@ export default function Flow({ mode, id }) {
     setMine(updated); ls.set(mineKey, updated);
     saveArrow({ arrow: xy });
     setDrawing(false);
+    setQi(0); setQCardDismissed(false); setStage('end');
     fetchPersonalizedQuestions({ arrow: xy });
   }
   function stay() {
@@ -324,6 +359,7 @@ export default function Flow({ mode, id }) {
     const updated = { ...mine, story: { ...mine.story, arrow: null, stays: true } };
     setMine(updated); ls.set(mineKey, updated);
     saveArrow({ stays: true }); setDrawing(false);
+    setQi(0); setQCardDismissed(false); setStage('end');
     fetchPersonalizedQuestions({ stays: true });
   }
   function restart() {
@@ -333,18 +369,26 @@ export default function Flow({ mode, id }) {
 
   async function fetchReading() {
     setReadingStage('loading'); setMsg('');
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 110_000);
     try {
       const r = await fetch(`/api/stories/${mine.story.id}/reading`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ token: mine.token, stage: readingStageVal, lens: readingLens }),
+        signal: ctrl.signal,
       });
+      clearTimeout(to);
       const j = await r.json();
-      if (!r.ok) { setReadingStage('picking'); setMsg(j.error || 'Could not get reading.'); return; }
+      if (!r.ok) { setReadingStage('error'); setMsg(j.error || 'Could not get reading.'); return; }
       ls.set(readingKey, j.reading);
       setReadingResult(j.reading);
       setReadingCardIdx(0);
       setReadingStage('done');
-    } catch (e) { setReadingStage('picking'); setMsg(String(e.message || e)); }
+    } catch (e) {
+      clearTimeout(to);
+      setReadingStage('error');
+      setMsg(e.name === 'AbortError' ? 'Took too long. Try again.' : String(e.message || 'Something went wrong.'));
+    }
   }
   function scrollToMap() {
     setTimeout(() => {
@@ -359,7 +403,7 @@ export default function Flow({ mode, id }) {
       setPastArrows(updated);
       ls.set(arrowsKey, updated);
     }
-    setQi(0);
+    setQi(0); setQCardDismissed(false);
     setDrawing(true);
     setShowMap(true);
     setStage('map');
@@ -380,11 +424,8 @@ export default function Flow({ mode, id }) {
     setTestMode(sessionStorage.getItem('sm_test') === '1');
   }, []);
   useEffect(() => {
-    if ((stage === 'think' || stage === 'end') && typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches) {
-      setShowMap(false);
-    } else {
-      setShowMap(true);
-    }
+    // Keep map visible on all stages — user controls visibility with the toggle button
+    setShowMap(true);
   }, [stage]);
 
   async function fetchPersonalizedQuestions(body) {
@@ -661,14 +702,6 @@ export default function Flow({ mode, id }) {
                 )}
               </div>
             </div>
-            {/* Primary CTA: answer questions — shown directly under the map as soon as arrow/stay is set */}
-            {stage === 'map' && me && me.x != null && (me.arrow || me.stays) && (
-              <div className="center" style={{ marginTop: 10, marginBottom: 2 }}>
-                <button className="big primary" type="button" onClick={() => { setQi(0); setStage('think'); }}>
-                  Answer 5 questions about your arrow →
-                </button>
-              </div>
-            )}
             {/* End-stage secondary links: small, under the map */}
             {stage === 'end' && (
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
@@ -757,6 +790,33 @@ export default function Flow({ mode, id }) {
 
             {stage === 'end' && (
               <div className="stack">
+                {/* Questions appear first, as swipeable cards, before analysis/email */}
+                {!qCardDismissed && (myQsLoading || myQs.length > 0) && (
+                  <div className="qcard" key={myQsLoading ? 'loading' : qi}>
+                    {myQsLoading ? (
+                      <LoadingBar stages={QUESTIONS_STAGES} />
+                    ) : (
+                      <>
+                        {qi === 0 && me && (me.arrow || me.stays) && map && map.axes && (
+                          <p className="context-line" style={{ font: '13px var(--body)', color: 'var(--sage)', margin: '0 0 10px' }}>
+                            {directionContext(map.axes, me)}
+                          </p>
+                        )}
+                        <div className="qdots">
+                          {myQs.map((_, i) => <span key={i} className={i <= qi ? 'on' : ''} />)}
+                        </div>
+                        <p className="q">{renderQ(myQs[qi])}</p>
+                        {!isSession && <textarea rows={3} aria-label="Your notes (only on this device)" placeholder="Jot it down. Only you can see this." value={notes[qi] || ''} onChange={(e) => note(qi, e.target.value)} />}
+                        <div className="row">
+                          {qi > 0 && <button type="button" className="quiet" onClick={() => setQi(qi - 1)}>Back</button>}
+                          {qi < myQs.length - 1
+                            ? <button type="button" onClick={() => setQi(qi + 1)}>Next question</button>
+                            : <button type="button" onClick={() => setQCardDismissed(true)}>Done</button>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
                 <h3>A narrative only runs if nothing interrupts it.</h3>
                 <p className="sub">You just drew the interrupt.</p>
                 {mine && (
@@ -818,6 +878,15 @@ export default function Flow({ mode, id }) {
                     <button type="button" className="endcard reading-cta" onClick={() => setReadingStage('picking')}>
                       <strong>Get your reading</strong>What your story reveals that you didn't plan to write.
                     </button>
+                  )}
+                  {readingStage === 'error' && (
+                    <div className="stack">
+                      <p className="warn" style={{ margin: 0 }}>{msg || 'Could not get reading.'}</p>
+                      <div className="row">
+                        <button type="button" className="big primary" onClick={fetchReading}>Try again</button>
+                        <button type="button" className="quiet" onClick={() => setReadingStage('idle')}>Not now</button>
+                      </div>
+                    </div>
                   )}
                   {readingStage === 'picking' && (
                     <div className="stack">

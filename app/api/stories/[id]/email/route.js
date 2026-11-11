@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { q, newId, hashToken } from '@/lib/db';
 import { fail } from '@/lib/auth';
 import { Resend } from 'resend';
+import { generateReading } from '@/lib/reading';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
 
 // Per-process IP rate limiter: 10 sends per hour per IP
 const ipLog = new Map();
@@ -218,10 +220,21 @@ export async function POST(req, { params }) {
       [newId(), params.id, email, followUp],
     );
 
+    // Generate reading if not already present (best-effort — email sends regardless)
+    let emailStory = story;
+    if (!story.reading && story.body) {
+      try {
+        const reading = await generateReading(story, session);
+        if (reading) emailStory = { ...story, reading };
+      } catch (e) {
+        console.warn('Reading generation for email failed:', e.message);
+      }
+    }
+
     // Build and send email
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://story-map.themohammadkhan.com';
-    const questions = getActiveQuestions(story);
-    const html = buildHtml(story, session, questions, baseUrl);
+    const questions = getActiveQuestions(emailStory);
+    const html = buildHtml(emailStory, session, questions, baseUrl);
     const headline = story.headline || '';
     const subject = headline
       ? `Your story: ${headline} · ${session.title || 'Story Map'}`

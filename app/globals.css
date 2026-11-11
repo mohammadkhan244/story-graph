@@ -250,10 +250,16 @@ svg.map.drawing { cursor: crosshair; touch-action: none; }
 .one-move-card p { font-size: 14px; line-height: 1.6; color: var(--label); margin: 0; }
 .reading-cards { display: flex; flex-direction: column; gap: 10px; touch-action: pan-y; }
 .reading-card { background: rgba(175,190,177,.06); border: 1px solid var(--frame); border-radius: 10px; padding: 18px 18px 14px; min-height: 180px; }
-.reading-card.reading-card-highlight { background: rgba(121,153,139,.07); border-color: rgba(121,153,139,.4); }
-.reading-card.reading-card-onemove { background: rgba(167,47,57,.10); border-color: rgba(167,47,57,.35); }
+/* Color-blind safe: left border stripe differentiates card types beyond background hue */
+.reading-card.reading-card-highlight { background: rgba(121,153,139,.07); border-color: rgba(121,153,139,.4); border-left: 3px solid rgba(121,153,139,.7); }
+.reading-card.reading-card-onemove { background: rgba(167,47,57,.10); border-color: rgba(167,47,57,.35); border-left: 3px solid var(--ruby); }
 .reading-card.reading-card-onemove .kicker { color: var(--ruby); }
 .reading-card-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Sub-headings within card bodies (NAME IT, WHY IT MATTERS, EYEWITNESS, etc.) */
+.reading-subhead { font: 700 10px/1 var(--labelf); letter-spacing: .15em; text-transform: uppercase; color: var(--sage); margin: 16px 0 5px; padding: 0; }
+.reading-subhead:first-child { margin-top: 0; }
+.reading-body .reading-subhead { font-size: 10px; }
+.reading-subhead-inline { font: 700 10px var(--labelf); letter-spacing: .12em; text-transform: uppercase; color: var(--sage); }
 
 /* loading bar */
 .lbar { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 400px; }
