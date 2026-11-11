@@ -534,7 +534,11 @@ export default function Flow({ mode, id }) {
           <div className="stage-head" style={{ marginBottom: 10 }}>
             {(s.bigQuestion || dec.q) && <p className="kicker">{s.bigQuestion || dec.q}</p>}
             {(() => {
-              const parts = lead ? lead.split(/(?<=[.?])\s+(?=[A-Z])/).filter(Boolean) : [];
+              if (!lead) return null;
+              const raw = lead.split('. ');
+              const parts = raw.length > 1
+                ? raw.map((p, i) => i < raw.length - 1 ? p + '.' : p).filter(Boolean)
+                : [lead];
               if (parts.length <= 1) return <p className="scene">{lead}</p>;
               return (
                 <div className="scene-block">
