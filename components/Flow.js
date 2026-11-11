@@ -445,7 +445,7 @@ export default function Flow({ mode, id }) {
   const stepIdx = { scene: 0, write: 1, name: 2, placing: 2, waiting: 3, map: 3, think: 4, end: 4 }[stage] ?? 0;
   const lead = leadLine(s, context, signal);
   const slug = s.cardSlug || s.slug || 'keep-circling';
-  const dec = decision(slug, s.title);
+  const dec = decision(s.cardSlug || s.slug, s.title);
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   const drift = DRIFT.test(text.slice(-180));
   const { tags, shape } = signalColors(points);
@@ -532,7 +532,7 @@ export default function Flow({ mode, id }) {
       {stage === 'write' && (
         <section className="stage">
           <div className="stage-head" style={{ marginBottom: 10 }}>
-            {(s.bigQuestion || dec.q) && <h3>{s.bigQuestion || dec.q}</h3>}
+            {(s.bigQuestion || dec.q) && <p className="kicker">{s.bigQuestion || dec.q}</p>}
             <p className="scene">{lead}</p>
             {s.ask && context && <p className="note center" style={{ marginTop: 4 }}><button type="button" className="textlink change" onClick={() => setStage('scene')}>Change</button></p>}
             <p className="anchor">{ANCHOR}</p>
