@@ -242,9 +242,9 @@ export default function StoryMap({
           ));
         })()}
 
-        {/* Other people's arrows */}
-        {showArrows && points.filter((p) => p.arrow && p.x != null && p.id !== youId).map((p) => (
-          <Arrow key={'a' + p.id} id={'a' + p.id} from={p} to={p.arrow} color="#afbeb1" width={2} opacity={0.45} />
+        {/* Other people's arrows — all when showArrows, or only the selected dot */}
+        {points.filter((p) => p.arrow && p.x != null && p.id !== youId && (showArrows || p.id === selId)).map((p) => (
+          <Arrow key={'a' + p.id} id={'a' + p.id} from={p} to={p.arrow} color="#afbeb1" width={2} opacity={p.id === selId ? 0.85 : 0.45} />
         ))}
 
         {/* Your arrow */}

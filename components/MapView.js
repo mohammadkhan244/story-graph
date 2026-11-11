@@ -34,6 +34,7 @@ export default function MapView({ id }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [sel, setSel] = useState(null);
+  const [showArrows, setShowArrows] = useState(false);
   const [whatIfDrawing, setWhatIfDrawing] = useState(false);
   const [whatIfArrow, setWhatIfArrow] = useState(null);
   const [wiQsData, setWiQsData] = useState(null);
@@ -129,6 +130,15 @@ export default function MapView({ id }) {
           </p>
         )}
 
+        {storyCount > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+            <label className="check" style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: 13 }}>
+              <input type="checkbox" checked={showArrows} onChange={(e) => setShowArrows(e.target.checked)} />
+              Show all arrows
+            </label>
+          </div>
+        )}
+
         <div className="mapwrap">
           <StoryMap
             axes={map.axes}
@@ -136,7 +146,7 @@ export default function MapView({ id }) {
             points={map.points}
             selId={sel}
             onSelect={drawing ? undefined : (pid) => setSel(pid === sel ? null : pid)}
-            showArrows
+            showArrows={showArrows}
             reveal
             arrowFor={drawing ? sel : null}
             onArrow={drawing ? ((_dotId, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
