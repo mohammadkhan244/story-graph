@@ -286,7 +286,10 @@ export default function Flow({ mode, id }) {
   }, [stage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isPaused = isSession && !!(s && s.pausedAt);
-  const sharedEnd = s && s.endsAt ? new Date(s.endsAt).getTime() : null;
+  const sharedEndRaw = s && s.endsAt ? new Date(s.endsAt).getTime() : null;
+  // An already-expired session timer shouldn't bypass the "Start my X minutes" button —
+  // treat it as no timer so each visitor gets their own pacing.
+  const sharedEnd = sharedEndRaw && sharedEndRaw > now ? sharedEndRaw : null;
   const minutes = (s && s.minutes) || 10;
   const end = isSession && sharedEnd ? sharedEnd : startedAt ? startedAt + minutes * 60000 : null;
   const left = isPaused
