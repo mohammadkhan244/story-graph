@@ -138,6 +138,7 @@ export default function StoryMap({
   pastArrowEnds, whatIfFor, whatIfTo,
 }) {
   const svgRef = useRef(null);
+  const containerRef = useRef(null);
   const uid = useId().replace(/:/g, '');
   const [drag, setDrag] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -152,10 +153,12 @@ export default function StoryMap({
   const hasQuads = !!(qn && (qn.tl?.name || qn.tr?.name || qn.bl?.name || qn.br?.name));
 
   useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg || typeof ResizeObserver === 'undefined') return;
+    // Observe the outer layout div — its width is stable and doesn't depend on
+    // isMobile, so measuring it avoids the feedback loop that caused flickering.
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(([e]) => { if (e.contentRect.width > 0) setSvgWidth(e.contentRect.width); });
-    ro.observe(svg);
+    ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
@@ -199,7 +202,7 @@ export default function StoryMap({
   const mPct = `${(M / W * 100).toFixed(3)}%`;
 
   return (
-    <div className="map-layout" onClick={() => { tapLabel && setTapLabel(null); }}>
+    <div className="map-layout" ref={containerRef} onClick={() => { tapLabel && setTapLabel(null); }}>
 
       {/* Quadrant titles above — OUTSIDE the dark mapwrap box */}
       {hasQuads && (
