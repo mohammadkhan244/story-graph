@@ -1,6 +1,7 @@
 ﻿'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryMap, { Mark, signalColors } from './StoryMap';
+import ResultCard from './ResultCard';
 import BrandBar from './BrandBar';
 import LoadingBar from './LoadingBar';
 import FictioneeringBlock from './FictioneeringBlock';
@@ -692,7 +693,7 @@ export default function Flow({ mode, id }) {
         <section className="stage mapgrid" data-stage={stage}>
           <div>
             <div className={showMap ? 'mapwrap' : 'mapwrap map-collapsed'} ref={mapRef}>
-              <StoryMap axes={map.axes} quads={map.quads} points={points} background={map.background || []}
+              <StoryMap axes={map.axes} quads={map.quads} quadrants={map.quadrants} points={points} background={map.background || []}
                 youId={mine && mine.story.id} selId={peek} reveal={reveal}
                 onSelect={(pid) => setPeek(pid === peek ? null : pid)}
                 arrowFor={drawing && mine ? mine.story.id : null} onArrow={setArrow}
@@ -732,18 +733,15 @@ export default function Flow({ mode, id }) {
           <div className="side">
             {stage === 'map' && me && me.x != null && (
               <div className="landed">
-                <span className="kicker">Where you landed</span>
-                <p className="where">{where(map.axes, me)}</p>
-                {me.xq && <p className="quote">"{truncateQuote(me.xq)}"</p>}
-                {(() => {
-                  const c = corners(points, me);
-                  return (
-                    <p className="note">
-                      {c.same === 0 ? "You're the first story in this corner. " : `You're one of ${c.same + 1} stories in this corner. `}
-                      {c.empty.length > 0 && <>Nobody has written this corner yet: <em>{cornerPoles(c.empty[0], map.axes)}</em>.</>}
-                    </p>
-                  );
-                })()}
+                <ResultCard
+                  axes={map.axes}
+                  quadrants={map.quadrants}
+                  quads={map.quads}
+                  x={me.x}
+                  y={me.y}
+                  arrow={me.arrow}
+                  kicker="YOUR STORY LANDED IN"
+                />
                 {!drawing ? (
                   <div className="stack" style={{ marginTop: 6 }}>
                     <button className="big primary" type="button" onClick={() => { setDrawing(true); setPeek(null); scrollToMap(); }}>{me.arrow || me.stays ? 'Redraw my arrow' : "Draw where you'd rather be"}</button>
@@ -961,18 +959,19 @@ export default function Flow({ mode, id }) {
             {peek && (() => {
               const p = points.find((x) => x.id === peek);
               if (!p || p.id === (mine && mine.story.id)) return null;
-              const arrowNote = p.arrow && map && map.axes ? (() => {
-                const dx = p.arrow.x - p.x, dy = p.arrow.y - p.y;
-                const isX = Math.abs(dx) >= Math.abs(dy);
-                const a = isX ? map.axes.x : map.axes.y;
-                const dest = (isX ? p.arrow.x : p.arrow.y) < 0 ? a.low : a.high;
-                const src = (isX ? p.x : p.y) < 0 ? a.low : a.high;
-                return src === dest ? `Going further toward ${dest}` : `Moving toward ${dest}`;
-              })() : null;
               return (
                 <div className="peek">
-                  {p.headline && <strong style={{ font: '400 22px var(--title)', display: 'block' }}>{p.headline}</strong>}
-                  <span className="kicker">{p.label}</span>
+                  <ResultCard
+                    axes={map.axes}
+                    quadrants={map.quadrants}
+                    quads={map.quads}
+                    x={p.x}
+                    y={p.y}
+                    arrow={p.arrow}
+                    kicker="THIS STORY LANDED IN"
+                  />
+                  {p.headline && <strong style={{ font: '400 22px var(--title)', display: 'block', marginTop: 10 }}>{p.headline}</strong>}
+                  {p.label && <span className="kicker">{p.label}</span>}
                   {p.body ? (
                     <>
                       {(p.context || p.signal) && <p className="note">{[p.context, p.signal].filter(Boolean).join(' · ')}</p>}
@@ -981,7 +980,6 @@ export default function Flow({ mode, id }) {
                   ) : (
                     <p className="note">This writer kept their story private.</p>
                   )}
-                  {p.stays ? <p className="note">Would stay where they are.</p> : arrowNote ? <p className="note">{arrowNote}</p> : null}
                 </div>
               );
             })()}

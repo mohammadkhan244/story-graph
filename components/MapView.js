@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import StoryMap from './StoryMap';
+import ResultCard from './ResultCard';
 import BrandBar from './BrandBar';
 import FictioneeringBlock from './FictioneeringBlock';
 import { classifyArrow, questions } from '@/lib/questions';
@@ -143,6 +144,7 @@ export default function MapView({ id }) {
           <StoryMap
             axes={map.axes}
             quads={map.quads}
+            quadrants={map.quadrants}
             points={map.points}
             selId={sel}
             onSelect={drawing ? undefined : (pid) => setSel(pid === sel ? null : pid)}
@@ -163,8 +165,19 @@ export default function MapView({ id }) {
         {selP && (
           <div className="peek" style={{ marginTop: 16 }}>
 
+            {/* Result card */}
+            <ResultCard
+              axes={map.axes}
+              quadrants={map.quadrants}
+              quads={map.quads}
+              x={selP.x}
+              y={selP.y}
+              arrow={selP.arrow}
+              kicker="THIS STORY LANDED IN"
+            />
+
             {/* Name + arrow badge */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginTop: 12, marginBottom: 6 }}>
               <div>
                 {selP.headline && (
                   <strong style={{ font: '400 20px var(--title)', display: 'block', marginBottom: 4 }}>{selP.headline}</strong>
@@ -185,18 +198,11 @@ export default function MapView({ id }) {
               </p>
             )}
 
-            {/* Placement — where they currently sit */}
-            {(selP.xq || selP.yq) && (
-              <p style={{ fontStyle: 'italic', opacity: 0.65, fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>
-                {[selP.xq, selP.yq].filter(Boolean).join(' · ')}
-              </p>
-            )}
-
             {/* Story body */}
             {selP.body ? (
               <p className="storytext" style={{ margin: '0 0 14px', maxHeight: 300, overflow: 'auto' }}>{selP.body}</p>
             ) : (
-              <p className="note" style={{ margin: '0 0 14px' }}>This story is kept private.</p>
+              <p className="note" style={{ margin: '0 0 14px' }}>This writer kept their story private.</p>
             )}
 
             {/* Arrow exploration controls */}

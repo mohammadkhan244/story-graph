@@ -146,8 +146,9 @@ export default function Presenter({ id }) {
           </div>
           <div className="mapwrap">
             {shown ? (
-              <StoryMap big axes={map.axes} quads={map.quads} points={pts} background={earlier ? map.background || [] : []}
+              <StoryMap big axes={map.axes} quads={map.quads} quadrants={map.quadrants} points={pts} background={earlier ? map.background || [] : []}
                 selId={sel} onSelect={(pid) => setSel(pid === sel ? null : pid)} reveal showArrows={arrows}
+                showLabels={names}
                 arrowFor={drawFor || (whatIfDrawing ? sel : null)}
                 onArrow={drawFor ? drawArrow : whatIfDrawing ? ((_id, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
                 whatIfFor={whatIfArrow && sel ? sel : null}

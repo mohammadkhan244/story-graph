@@ -1,8 +1,7 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { SHAPES } from '@/lib/cards';
 
-/* Brand map: ink field, sage dots, your dot is the one ruby signal on screen. */
 const W = 640, H = 640, M = 28;
 const px = (x) => M + ((x + 5) / 10) * (W - 2 * M);
 const py = (y) => H - M - ((y + 5) / 10) * (H - 2 * M);
@@ -10,6 +9,22 @@ const unpx = (v) => ((v - M) / (W - 2 * M)) * 10 - 5;
 const unpy = (v) => ((H - M - v) / (H - 2 * M)) * 10 - 5;
 const r1 = (v) => Math.max(-5, Math.min(5, Math.round(v * 10) / 10));
 const short = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+
+/* Quadrant tint colors */
+const TINTS = { tl: '#1d2b31', tr: '#222c28', bl: '#232a31', br: '#2b2924' };
+
+/* Convert old {ll,hl,lh,hh} names-only format to new {tl,tr,bl,br} with name+meaning */
+export function normalizeQuads(quadrants, quads) {
+  if (quadrants && (quadrants.tl || quadrants.tr || quadrants.bl || quadrants.br)) return quadrants;
+  if (!quads) return null;
+  return {
+    tl: { name: String(quads.lh || ''), meaning: '' },
+    tr: { name: String(quads.hh || ''), meaning: '' },
+    bl: { name: String(quads.ll || ''), meaning: '' },
+    br: { name: String(quads.hl || ''), meaning: '' },
+  };
+}
+
 function wrapSvg(text, maxChars = 28) {
   if (!text) return [];
   const words = text.split(' ');
@@ -23,7 +38,6 @@ function wrapSvg(text, maxChars = 28) {
   if (line) lines.push(line);
   return lines;
 }
-function labelLines(label, maxChars = 15) { return wrapSvg(label, maxChars); }
 export const fmt = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(Number(n) || 0).toFixed(1);
 
 function spreadOverlaps(points, threshold = 0.4, radius = 0.4) {
@@ -96,20 +110,46 @@ function Arrow({ from, to, color, width, opacity = 1, id, dash }) {
   );
 }
 
+/* Quadrant title rendered outside the SVG */
+function QuadTitle({ qt, side, isMobile }) {
+  const [open, setOpen] = useState(false);
+  if (!qt || !qt.name) return <div className={`map-qt map-qt-${side}`} />;
+  const hasMeaning = !!qt.meaning;
+  return (
+    <div className={`map-qt map-qt-${side}`}>
+      {isMobile && hasMeaning ? (
+        <button className="map-qt-btn" onClick={() => setOpen((v) => !v)}>
+          <span className="map-qt-name">{qt.name}</span>
+          {open && <span className="map-qt-meaning">{qt.meaning}</span>}
+        </button>
+      ) : (
+        <>
+          <span className="map-qt-name">{qt.name}</span>
+          {!isMobile && hasMeaning && <span className="map-qt-meaning">{qt.meaning}</span>}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function StoryMap({
-  axes, quads, points = [], background = [], youId, selId, onSelect, onMove,
+  axes, quads, quadrants: quadrantsProp, points = [], background = [], youId, selId, onSelect, onMove,
   arrowFor, onArrow, showArrows = true, showLabels = true, reveal = false, big = false,
   pastArrowEnds, whatIfFor, whatIfTo,
 }) {
   const svgRef = useRef(null);
+  const uid = useId().replace(/:/g, '');
   const [drag, setDrag] = useState(null);
   const [draft, setDraft] = useState(null);
-  const [tooltipPole, setTooltipPole] = useState(null);
   const [svgWidth, setSvgWidth] = useState(W);
   const [tapLabel, setTapLabel] = useState(null);
+  const [hovered, setHovered] = useState(null);
+
   const ax = (axes && axes.x) || {}, ay = (axes && axes.y) || {};
   const isMobile = svgWidth < 640;
   const displayPoints = spreadOverlaps(points);
+  const qn = normalizeQuads(quadrantsProp, quads);
+  const hasQuads = !!(qn && (qn.tl?.name || qn.tr?.name || qn.bl?.name || qn.br?.name));
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -120,34 +160,6 @@ export default function StoryMap({
   }, []);
 
   const scale = svgWidth / W;
-  const fs = (base) => Math.ceil(Math.max(base, 13 / Math.max(scale, 0.05)));
-
-  useEffect(() => {
-    if (!tooltipPole) return;
-    const handler = (e) => { if (e.key === 'Escape') setTooltipPole(null); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [tooltipPole]);
-
-  /* HTML pole label — renders text; if desc provided, toggles description on click */
-  function htmlPole(id, text, desc) {
-    if (!text) return null;
-    const active = tooltipPole === id;
-    if (!desc) return <>{text}</>;
-    return (
-      <span className={'map-pole-html' + (active ? ' open' : '')}
-        role="button" tabIndex={0}
-        aria-expanded={active}
-        aria-label={`${text}: ${desc}`}
-        onClick={(e) => { e.stopPropagation(); setTooltipPole(active ? null : id); }}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTooltipPole(active ? null : id); } }}>
-        {text}
-        {active && <span className="map-pole-desc">{desc}</span>}
-      </span>
-    );
-  }
-
-  const { shape } = signalColors(points);
 
   function toXY(e) {
     const svg = svgRef.current;
@@ -165,235 +177,211 @@ export default function StoryMap({
   } : {};
 
   const ordered = [...displayPoints].sort((a, b) => (a.id === youId) - (b.id === youId));
-  const labelMap = new Map();
-  {
-    function tryLabel(p) {
-      if (p.x == null || p.y == null) { labelMap.set(p.id, { show: false, cx: 0 }); return; }
-      const you = !!(youId && p.id === youId);
-      const sel = selId === p.id;
+  const { shape } = signalColors(points);
 
-      if (isMobile) {
-        labelMap.set(p.id, { show: you || tapLabel === p.id, cx: px(p.x) });
-        return;
-      }
+  /* Label visibility: YOU always, others on hover/tap/select; presenter showLabels=all */
+  function showLabel(p) {
+    if (p.id === youId) return true;
+    if (p.isTest) return true;
+    if (isMobile) return tapLabel === p.id;
+    return showLabels || hovered === p.id || selId === p.id;
+  }
 
-      const hasLabel = you || p.isTest || !!(p.label && p.label.trim());
-      if (!(showLabels || you || sel) || (!you && !p.isTest && !hasLabel && !sel)) {
-        labelMap.set(p.id, { show: false, cx: 0 }); return;
-      }
-
-      const lines = p.isTest ? ['TEST'] : you ? ['You'] : labelLines(p.label || '');
-      if (!lines.some((l) => l.trim())) { labelMap.set(p.id, { show: false, cx: 0 }); return; }
-      const fsize = big ? 13 : (you ? 13 : 11);
-      const maxLen = Math.max(...lines.map((l) => l.length), 1);
-      const tw = maxLen * fsize * 0.62;
-      const rawCx = px(p.x);
-      const cx = Math.min(W - M - tw / 2, Math.max(M + tw / 2, rawCx));
-      labelMap.set(p.id, { show: true, cx });
-    }
-
-    const youPt = displayPoints.find((p) => p.id === youId);
-    const selPt = selId && selId !== youId ? displayPoints.find((p) => p.id === selId) : null;
-    if (youPt) tryLabel(youPt);
-    if (selPt) tryLabel(selPt);
-    for (const p of ordered) {
-      if (p.id !== youId && p.id !== selId) tryLabel(p);
-    }
+  /* Clamp label x so it doesn't overflow the plot */
+  function labelCx(x, labelText) {
+    const tw = (labelText.length * 7 + 12);
+    return Math.min(W - M - tw / 2, Math.max(M + tw / 2, px(x)));
   }
 
   const n = points.length;
 
+  /* Percentage of M within the SVG viewBox, used for axis box positioning */
+  const mPct = `${(M / W * 100).toFixed(3)}%`;
+
   return (
-    <div className="map-layout" onClick={() => { tooltipPole && setTooltipPole(null); }}>
+    <div className="map-layout" onClick={() => { tapLabel && setTapLabel(null); }}>
 
-      {/* y-axis name: grid-area ylabel, vertically centered left of the plot */}
-      {axes && ay.name && <span className="map-y-name">{ay.name}</span>}
-
-      {/* above plot: y-axis high pole only */}
-      {axes && ay.high && (
-        <div className="map-axis-top">
-          <span className="map-y-high">{htmlPole('yhigh', '↑ ' + ay.high, ay.highDesc)}</span>
+      {/* Quadrant titles row above the plot */}
+      {hasQuads && (
+        <div className="map-qt-row map-qt-top">
+          <QuadTitle qt={qn.tl} side="tl" isMobile={isMobile} />
+          <QuadTitle qt={qn.tr} side="tr" isMobile={isMobile} />
         </div>
       )}
 
-      <svg ref={svgRef}
-        className={'map' + (drawing ? ' drawing' : '') + (big ? ' big' : '') + (reveal ? ' reveal' : '')}
-        viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Map of ${n} stories`} {...surface}
-        onClick={(e) => { if (!drawing) { tapLabel && setTapLabel(null); } }}>
+      {/* Map row: left axis box + SVG container + right axis box */}
+      <div className="map-with-axes">
+        {!isMobile && axes && ax.low && (
+          <div className="map-axis-box map-axis-side-left">← {ax.low}</div>
+        )}
 
-        {/* Grid */}
-        {[...Array(11)].map((_, i) => (
-          <g key={'g' + i}>
-            <line className="grid" x1={px(i - 5)} y1={M} x2={px(i - 5)} y2={H - M} />
-            <line className="grid" x1={M} y1={py(i - 5)} x2={W - M} y2={py(i - 5)} />
-          </g>
-        ))}
-        <rect className="frame" x={M} y={M} width={W - 2 * M} height={H - 2 * M} />
-        <line className="axis" x1={px(0)} y1={M} x2={px(0)} y2={H - M} />
-        <line className="axis" x1={M} y1={py(0)} x2={W - M} y2={py(0)} />
+        <div className="map-axis-box-container">
+          {axes && ay.high && (
+            <div className="map-axis-box map-axis-top" style={{ top: mPct }}>↑ {ay.high}</div>
+          )}
 
-        {/* Quad corner names — desktop only; mobile shows 2×2 legend below */}
-        {!isMobile && quads && (() => {
-          const lh = fs(12) * 1.3;
-          const ix = M + 8;
-          return (
-            <>
-              <text className="qlab" x={ix} textAnchor="start" style={{ fontSize: fs(12) }}>
-                {wrapSvg(quads.lh || '', 20).map((ln, k) => <tspan key={k} x={ix} dy={k === 0 ? M + 14 : lh}>{ln}</tspan>)}
-              </text>
-              <text className="qlab" x={W - ix} textAnchor="end" style={{ fontSize: fs(12) }}>
-                {wrapSvg(quads.hh || '', 20).map((ln, k) => <tspan key={k} x={W - ix} dy={k === 0 ? M + 14 : lh}>{ln}</tspan>)}
-              </text>
-              {(() => {
-                const llLines = wrapSvg(quads.ll || '', 20);
-                const hlLines = wrapSvg(quads.hl || '', 20);
-                const maxBotLines = Math.max(llLines.length, hlLines.length);
-                const botStartY = H - M - 8 - (maxBotLines - 1) * lh;
-                return (
-                  <>
-                    <text className="qlab" x={ix} textAnchor="start" style={{ fontSize: fs(12) }}>
-                      {llLines.map((ln, k) => <tspan key={k} x={ix} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
-                    </text>
-                    <text className="qlab" x={W - ix} textAnchor="end" style={{ fontSize: fs(12) }}>
-                      {hlLines.map((ln, k) => <tspan key={k} x={W - ix} dy={k === 0 ? botStartY : lh}>{ln}</tspan>)}
-                    </text>
-                  </>
-                );
-              })()}
-            </>
-          );
-        })()}
+          <svg ref={svgRef}
+            className={'map' + (drawing ? ' drawing' : '') + (big ? ' big' : '') + (reveal ? ' reveal' : '')}
+            viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Map of ${n} stories`} {...surface}
+            onClick={(e) => { if (!drawing) tapLabel && setTapLabel(null); }}>
 
-        {/* Background dots */}
-        {background.map((p) => <circle key={'bg' + p.id} className="bgdot" cx={px(p.x)} cy={py(p.y)} r={4} />)}
-
-        {/* Past arrow ghosts */}
-        {pastArrowEnds && (() => {
-          const me = points.find((p) => p.id === youId);
-          if (!me || me.x == null) return null;
-          return pastArrowEnds.map((end, i) => (
-            <Arrow key={'past' + i} id={'past' + i} from={me} to={end} color="#79998b" width={1.5} opacity={0.3} dash="6 4" />
-          ));
-        })()}
-
-        {/* Other people's arrows — all when showArrows, or only the selected dot */}
-        {displayPoints.filter((p) => p.arrow && p.x != null && p.id !== youId && (showArrows || p.id === selId)).map((p) => (
-          <Arrow key={'a' + p.id} id={'a' + p.id} from={p} to={p.arrow} color="#afbeb1" width={2} opacity={p.id === selId ? 0.85 : 0.45} />
-        ))}
-
-        {/* Your arrow */}
-        {(() => {
-          const me = displayPoints.find((p) => p.id === youId);
-          if (!me || me.x == null) return null;
-          const head = drawing && arrowFor === youId && draft ? draft : (showArrows ? me.arrow : null);
-          return head ? <Arrow id="mine" from={me} to={head} color="#fffdf6" width={3.5} /> : null;
-        })()}
-
-        {/* Draft arrow while drawing (admin: other dot) */}
-        {drawing && arrowFor !== youId && origin && draft && <Arrow id="draft" from={origin} to={draft} color="#fffdf6" width={3} />}
-
-        {/* What-if arrow */}
-        {whatIfFor && whatIfTo && (() => {
-          const wif = displayPoints.find((p) => p.id === whatIfFor);
-          if (!wif || wif.x == null) return null;
-          const mx = (px(wif.x) + px(whatIfTo.x)) / 2;
-          const my = (py(wif.y) + py(whatIfTo.y)) / 2 - 12;
-          return (
-            <g className="whatif-arrow">
-              <Arrow id="whatif" from={wif} to={whatIfTo} color="#a5c7d1" width={2.5} dash="9 5" />
-              <text x={mx} y={my} textAnchor="middle" className="whatif-lbl">what if</text>
+            {/* Quadrant tint rects (clipped to rounded rectangle) */}
+            <defs>
+              <clipPath id={`pc-${uid}`}>
+                <rect x={M} y={M} width={W - 2 * M} height={H - 2 * M} rx={8} />
+              </clipPath>
+            </defs>
+            <g clipPath={`url(#pc-${uid})`}>
+              <rect x={M} y={M} width={px(0) - M} height={py(0) - M} fill={TINTS.tl} />
+              <rect x={px(0)} y={M} width={W - M - px(0)} height={py(0) - M} fill={TINTS.tr} />
+              <rect x={M} y={py(0)} width={px(0) - M} height={H - M - py(0)} fill={TINTS.bl} />
+              <rect x={px(0)} y={py(0)} width={W - M - px(0)} height={H - M - py(0)} fill={TINTS.br} />
             </g>
-          );
-        })()}
 
-        {/* Dots */}
-        {ordered.map((p, i) => {
-          const scored = p.x != null && p.y != null;
-          if (!scored) return null;
-          let x = p.x, y = p.y;
-          if (drag && drag.id === p.id && drag.moved) { x = drag.x; y = drag.y; }
-          const you = !!(youId && p.id === youId);
-          const sel = selId === p.id;
-          const hollow = p.source === 'card-exercise';
-          const testDot = !!p.isTest;
-          const ld = labelMap.get(p.id) || { show: false, cx: px(x) };
-          const lines = labelLines(p.label || '');
-          const lx = ld.cx - px(x);
-          return (
-            <g key={p.id} className={'dot' + (you ? ' you' : '') + (onMove ? ' drag' : '')}
-              tabIndex={drawing ? -1 : 0} role="button"
-              style={{ '--i': i }}
-              aria-label={`${you ? 'Your story' : p.label}, ${fmt(p.x)} across, ${fmt(p.y)} up`}
-              transform={`translate(${px(x)} ${py(y)})`}
-              onClick={(e) => {
-                if (drawing) return;
-                e.stopPropagation();
-                if (drag && drag.moved) return;
-                if (isMobile && !you) setTapLabel(tapLabel === p.id ? null : p.id);
-                onSelect && onSelect(p.id);
-              }}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect && onSelect(p.id); } }}
-              onPointerDown={onMove && !drawing ? (e) => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setDrag({ id: p.id, x, y, sx: e.clientX, sy: e.clientY, moved: false }); } : undefined}
-              onPointerMove={onMove && !drawing ? (e) => {
-                if (!drag || drag.id !== p.id) return;
-                if (!drag.moved && Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) < 5) return;
-                setDrag({ ...drag, ...toXY(e), moved: true });
-              } : undefined}
-              onPointerUp={onMove && !drawing ? () => { if (drag && drag.id === p.id && drag.moved) onMove(p.id, drag.x, drag.y); setTimeout(() => setDrag(null), 0); } : undefined}
-            >
-              <g className="pop">
-                {you ? (
-                  <>
-                    <circle r={22} className="halo" />
-                    <circle r={13} fill="#a72f39" stroke="#fffdf6" strokeWidth={2.5} />
-                  </>
-                ) : testDot ? (
-                  <Mark shape="circle" r={sel ? 10 : 8} fill="none" stroke="#a72f39" sw={sel ? 3 : 2} />
-                ) : (
-                  <>
-                    {p.body != null && <circle r={sel ? 16 : 14} fill="none" stroke="#afbeb1" strokeWidth={1.5} opacity={0.45} />}
-                    <Mark shape={shape(p.signal)} r={sel ? 10 : 8} fill={hollow ? 'none' : '#afbeb1'} stroke={sel ? '#fffdf6' : '#afbeb1'} sw={sel ? 3 : 2} />
-                  </>
-                )}
-              </g>
-              {ld.show && (
-                <text className={'dlab' + (you ? ' me' : '')} textAnchor="middle" y={you ? 38 : (isMobile ? -18 : 24)} style={{ fontSize: fs(you ? 13 : 11) }}>
-                  {you
-                    ? <tspan x={lx} dy="0">You</tspan>
-                    : testDot
-                    ? <tspan x={lx} dy="0" style={{ fill: '#a72f39' }}>TEST</tspan>
-                    : lines.map((ln, k) => <tspan key={k} x={lx} dy={k ? '1.15em' : '0'}>{ln}</tspan>)}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+            {/* Center axis lines */}
+            <line x1={px(0)} y1={M} x2={px(0)} y2={H - M} stroke="#8d9d9d" strokeWidth={1} />
+            <line x1={M} y1={py(0)} x2={W - M} y2={py(0)} stroke="#8d9d9d" strokeWidth={1} />
 
-      {/* ── Below the plot: y-axis low pole ── */}
-      {axes && ay.low && (
-        <div className="map-y-low">{htmlPole('ylow', '↓ ' + ay.low, ay.lowDesc)}</div>
-      )}
+            {/* Background dots */}
+            {background.map((p) => <circle key={'bg' + p.id} className="bgdot" cx={px(p.x)} cy={py(p.y)} r={3} />)}
 
-      {/* x-axis poles: left and right, spaced apart */}
-      {axes && (ax.low || ax.high) && (
-        <div className="map-x-poles">
-          {ax.low && <span className="map-pole-left">{htmlPole('xlow', '← ' + ax.low, ax.lowDesc)}</span>}
-          {ax.high && <span className="map-pole-right">{htmlPole('xhigh', ax.high + ' →', ax.highDesc)}</span>}
+            {/* Past arrow ghosts */}
+            {pastArrowEnds && (() => {
+              const me = points.find((p) => p.id === youId);
+              if (!me || me.x == null) return null;
+              return pastArrowEnds.map((end, i) => (
+                <Arrow key={'past' + i} id={'past' + i} from={me} to={end} color="#79998b" width={1.5} opacity={0.3} dash="6 4" />
+              ));
+            })()}
+
+            {/* Other people's arrows */}
+            {displayPoints.filter((p) => p.arrow && p.x != null && p.id !== youId && (showArrows || p.id === selId)).map((p) => (
+              <Arrow key={'a' + p.id} id={'a' + p.id} from={p} to={p.arrow} color="#afbeb1" width={2} opacity={p.id === selId ? 0.85 : 0.45} />
+            ))}
+
+            {/* Your arrow */}
+            {(() => {
+              const me = displayPoints.find((p) => p.id === youId);
+              if (!me || me.x == null) return null;
+              const head = drawing && arrowFor === youId && draft ? draft : (showArrows ? me.arrow : null);
+              return head ? <Arrow id="mine" from={me} to={head} color="#fffdf6" width={3.5} /> : null;
+            })()}
+
+            {/* Draft arrow while drawing (admin: other dot) */}
+            {drawing && arrowFor !== youId && origin && draft && <Arrow id="draft" from={origin} to={draft} color="#fffdf6" width={3} />}
+
+            {/* What-if arrow */}
+            {whatIfFor && whatIfTo && (() => {
+              const wif = displayPoints.find((p) => p.id === whatIfFor);
+              if (!wif || wif.x == null) return null;
+              const mx = (px(wif.x) + px(whatIfTo.x)) / 2;
+              const my = (py(wif.y) + py(whatIfTo.y)) / 2 - 12;
+              return (
+                <g className="whatif-arrow">
+                  <Arrow id="whatif" from={wif} to={whatIfTo} color="#a5c7d1" width={2.5} dash="9 5" />
+                  <text x={mx} y={my} textAnchor="middle" className="whatif-lbl">what if</text>
+                </g>
+              );
+            })()}
+
+            {/* Dots */}
+            {ordered.map((p, i) => {
+              const scored = p.x != null && p.y != null;
+              if (!scored) return null;
+              let x = p.x, y = p.y;
+              if (drag && drag.id === p.id && drag.moved) { x = drag.x; y = drag.y; }
+              const you = !!(youId && p.id === youId);
+              const sel = selId === p.id;
+              const testDot = !!p.isTest;
+              const hollow = p.source === 'card-exercise';
+              const lbl = showLabel(p);
+              const labelText = you ? 'YOU' : (p.isTest ? 'TEST' : short(p.label || '', 20));
+              const lcx = labelCx(x, labelText) - px(x);
+
+              return (
+                <g key={p.id} className={'dot' + (you ? ' you' : '') + (onMove ? ' drag' : '')}
+                  tabIndex={drawing ? -1 : 0} role="button"
+                  style={{ '--i': i }}
+                  aria-label={`${you ? 'Your story' : (p.label || 'Story')}, ${fmt(p.x)} across, ${fmt(p.y)} up`}
+                  transform={`translate(${px(x)} ${py(y)})`}
+                  onMouseEnter={!you && !drawing ? () => setHovered(p.id) : undefined}
+                  onMouseLeave={!you && !drawing ? () => setHovered(null) : undefined}
+                  onClick={(e) => {
+                    if (drawing) return;
+                    e.stopPropagation();
+                    if (drag && drag.moved) return;
+                    if (isMobile && !you) setTapLabel(tapLabel === p.id ? null : p.id);
+                    onSelect && onSelect(p.id);
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect && onSelect(p.id); } }}
+                  onPointerDown={onMove && !drawing ? (e) => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setDrag({ id: p.id, x, y, sx: e.clientX, sy: e.clientY, moved: false }); } : undefined}
+                  onPointerMove={onMove && !drawing ? (e) => {
+                    if (!drag || drag.id !== p.id) return;
+                    if (!drag.moved && Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) < 5) return;
+                    setDrag({ ...drag, ...toXY(e), moved: true });
+                  } : undefined}
+                  onPointerUp={onMove && !drawing ? () => { if (drag && drag.id === p.id && drag.moved) onMove(p.id, drag.x, drag.y); setTimeout(() => setDrag(null), 0); } : undefined}
+                >
+                  <g className="pop">
+                    {you ? (
+                      <circle r={13} fill="#a72f39" stroke="#fffdf6" strokeWidth={3} />
+                    ) : testDot ? (
+                      <Mark shape="circle" r={sel ? 10 : 8} fill="none" stroke="#a72f39" sw={sel ? 3 : 2} />
+                    ) : (
+                      <>
+                        {p.body != null && <circle r={sel ? 16 : 14} fill="none" stroke="#afbeb1" strokeWidth={1.5} opacity={0.45} />}
+                        <Mark shape={shape(p.signal)} r={sel ? 10 : 8}
+                          fill={hollow ? 'none' : '#afbeb1'}
+                          stroke={sel ? '#fffdf6' : '#0c1012'}
+                          sw={2} />
+                      </>
+                    )}
+                  </g>
+
+                  {/* Label / tooltip */}
+                  {lbl && labelText && (
+                    <text
+                      className={'dlab' + (you ? ' me' : testDot ? ' test' : '')}
+                      textAnchor="middle"
+                      y={you ? 28 : (isMobile ? -18 : -18)}
+                      style={{ fontSize: you ? 11 : 11 }}>
+                      <tspan x={lcx}>{labelText}</tspan>
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+
+          {axes && ay.low && (
+            <div className="map-axis-box map-axis-bottom" style={{ bottom: mPct }}>↓ {ay.low}</div>
+          )}
+        </div>
+
+        {!isMobile && axes && ax.high && (
+          <div className="map-axis-box map-axis-side-right">{ax.high} →</div>
+        )}
+      </div>
+
+      {/* Mobile: x-axis row below the plot */}
+      {isMobile && axes && (ax.low || ax.high) && (
+        <div className="map-axis-sides-mobile">
+          {ax.low && <span className="map-axis-box">← {ax.low}</span>}
+          {ax.high && <span className="map-axis-box">{ax.high} →</span>}
         </div>
       )}
 
-      {/* x-axis name: centered on its own row at the axis midpoint */}
-      {axes && ax.name && <div className="map-x-name">{ax.name}</div>}
-
-      {/* ── Mobile only: 2×2 quad legend ── */}
-      {isMobile && quads && (
-        <div className="map-quad-legend" role="list" aria-label="Quadrant names">
-          <div role="listitem">↖ {quads.lh}</div>
-          <div role="listitem" style={{ textAlign: 'right' }}>↗ {quads.hh}</div>
-          <div role="listitem">↙ {quads.ll}</div>
-          <div role="listitem" style={{ textAlign: 'right' }}>↘ {quads.hl}</div>
+      {/* Quadrant titles row below the plot */}
+      {hasQuads && (
+        <div className="map-qt-row map-qt-bottom">
+          <QuadTitle qt={qn.bl} side="bl" isMobile={isMobile} />
+          <QuadTitle qt={qn.br} side="br" isMobile={isMobile} />
         </div>
+      )}
+
+      {/* Hint text */}
+      {onSelect && (
+        <p className="note map-hint">Tap any dot to see whose story it is.</p>
       )}
     </div>
   );
