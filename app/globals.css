@@ -184,7 +184,7 @@ svg.map.drawing { cursor: crosshair; touch-action: none; }
 .map .bgdot { fill: #344245; opacity: .6; }
 .map .dot { cursor: pointer; }
 .map .dot.drag { cursor: grab; }
-.map .dlab { font: 900 11px var(--body); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 1px; pointer-events: none; }
+.map .dlab { font: 700 11px var(--body); fill: var(--paper); stroke: none; pointer-events: none; }
 .map .dlab.me { font: 700 11px var(--labelf); letter-spacing: .16em; text-transform: uppercase; fill: var(--paper); paint-order: stroke; stroke: none; }
 .map .dlab.test { fill: var(--ruby); }
 .map.reveal .dot .pop { animation: popIn .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--i) * 60ms + 200ms); transform-origin: 0 0; }
