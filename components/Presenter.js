@@ -144,23 +144,23 @@ export default function Presenter({ id }) {
               <button type="button" className="quiet" aria-pressed={showTestStories} onClick={() => setShowTestStories(!showTestStories)}>Include my test stories</button>
             </div>
           </div>
-          <div className="mapwrap">
-            {shown ? (
-              <StoryMap big axes={map.axes} quads={map.quads} quadrants={map.quadrants} points={pts} background={earlier ? map.background || [] : []}
-                selId={sel} onSelect={(pid) => setSel(pid === sel ? null : pid)} reveal showArrows={arrows}
-                showLabels={names}
-                arrowFor={drawFor || (whatIfDrawing ? sel : null)}
-                onArrow={drawFor ? drawArrow : whatIfDrawing ? ((_id, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
-                whatIfFor={whatIfArrow && sel ? sel : null}
-                whatIfTo={whatIfArrow} />
-            ) : (
+          {shown ? (
+            <StoryMap big axes={map.axes} quads={map.quads} quadrants={map.quadrants} points={pts} background={earlier ? map.background || [] : []}
+              selId={sel} onSelect={(pid) => setSel(pid === sel ? null : pid)} reveal showArrows={arrows}
+              showLabels={names}
+              arrowFor={drawFor || (whatIfDrawing ? sel : null)}
+              onArrow={drawFor ? drawArrow : whatIfDrawing ? ((_id, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
+              whatIfFor={whatIfArrow && sel ? sel : null}
+              whatIfTo={whatIfArrow} />
+          ) : (
+            <div className="mapwrap">
               <div className="center" style={{ padding: '120px 20px', gap: 18 }}>
                 <span className="kicker">Stories in</span>
                 <span className="bigcount">{placed}</span>
                 <button className="big primary" type="button" disabled={!placed} onClick={() => setShown(true)}>Reveal the map</button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
           {msg && <p className="warn">{msg}</p>}
         </section>
 

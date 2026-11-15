@@ -692,7 +692,7 @@ export default function Flow({ mode, id }) {
       {(stage === 'map' || stage === 'think' || stage === 'end') && map && map.axes && (
         <section className="stage mapgrid" data-stage={stage}>
           <div>
-            <div className={showMap ? 'mapwrap' : 'mapwrap map-collapsed'} ref={mapRef}>
+            <div ref={mapRef} className={showMap ? '' : 'map-collapsed'}>
               <StoryMap axes={map.axes} quads={map.quads} quadrants={map.quadrants} points={points} background={map.background || []}
                 youId={mine && mine.story.id} selId={peek} reveal={reveal}
                 onSelect={(pid) => setPeek(pid === peek ? null : pid)}

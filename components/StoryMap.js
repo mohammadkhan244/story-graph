@@ -141,7 +141,7 @@ export default function StoryMap({
   const uid = useId().replace(/:/g, '');
   const [drag, setDrag] = useState(null);
   const [draft, setDraft] = useState(null);
-  const [svgWidth, setSvgWidth] = useState(W);
+  const [svgWidth, setSvgWidth] = useState(0);
   const [tapLabel, setTapLabel] = useState(null);
   const [hovered, setHovered] = useState(null);
 
@@ -201,13 +201,16 @@ export default function StoryMap({
   return (
     <div className="map-layout" onClick={() => { tapLabel && setTapLabel(null); }}>
 
-      {/* Quadrant titles row above the plot */}
+      {/* Quadrant titles above — OUTSIDE the dark mapwrap box */}
       {hasQuads && (
         <div className="map-qt-row map-qt-top">
           <QuadTitle qt={qn.tl} side="tl" isMobile={isMobile} />
           <QuadTitle qt={qn.tr} side="tr" isMobile={isMobile} />
         </div>
       )}
+
+      {/* The dark map box */}
+      <div className="mapwrap">
 
       {/* Map row: left axis box + SVG container + right axis box */}
       <div className="map-with-axes">
@@ -371,7 +374,9 @@ export default function StoryMap({
         </div>
       )}
 
-      {/* Quadrant titles row below the plot */}
+      </div>{/* end mapwrap */}
+
+      {/* Quadrant titles below — OUTSIDE the dark mapwrap box */}
       {hasQuads && (
         <div className="map-qt-row map-qt-bottom">
           <QuadTitle qt={qn.bl} side="bl" isMobile={isMobile} />

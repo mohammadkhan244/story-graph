@@ -140,23 +140,21 @@ export default function MapView({ id }) {
           </div>
         )}
 
-        <div className="mapwrap">
-          <StoryMap
-            axes={map.axes}
-            quads={map.quads}
-            quadrants={map.quadrants}
-            points={map.points}
-            selId={sel}
-            onSelect={drawing ? undefined : (pid) => setSel(pid === sel ? null : pid)}
-            showArrows={showArrows}
-            showLabels
-            reveal
-            arrowFor={drawing ? sel : null}
-            onArrow={drawing ? ((_dotId, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
-            whatIfFor={showWi ? sel : null}
-            whatIfTo={whatIfArrow}
-          />
-        </div>
+        <StoryMap
+          axes={map.axes}
+          quads={map.quads}
+          quadrants={map.quadrants}
+          points={map.points}
+          selId={sel}
+          onSelect={drawing ? undefined : (pid) => setSel(pid === sel ? null : pid)}
+          showArrows={showArrows}
+          showLabels
+          reveal
+          arrowFor={drawing ? sel : null}
+          onArrow={drawing ? ((_dotId, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
+          whatIfFor={showWi ? sel : null}
+          whatIfTo={whatIfArrow}
+        />
 
         {!sel && storyCount > 0 && (
           <p className="note" style={{ marginTop: 12, textAlign: 'center' }}>Tap a dot to read their story and explore what questions they faced.</p>
