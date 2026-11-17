@@ -389,7 +389,8 @@ header.top h1 { font-size: 34px; }
 .tabs button[aria-selected="true"] { color: var(--paper); border-bottom-color: var(--paper); }
 details > summary { cursor: pointer; }
 footer.foot { max-width: 1000px; margin: 70px auto 0; padding-top: 24px; border-top: 1px solid var(--frame); display: flex; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; align-items: flex-start; }
-.foot-label { display: flex; flex-direction: column; gap: 4px; }
+.foot-label { display: flex; flex-direction: column; gap: 6px; }
+.foot-head { font: 400 26px/1.2 var(--title); color: var(--paper); margin: 0; }
 .foot-desc { font: 400 14px/1.5 var(--body); color: var(--label); margin: 0; max-width: 36ch; }
 .foot-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 2px; }
 .foot-chip { display: inline-block; padding: 6px 14px; border: 1px solid var(--frame); border-radius: 99px; font: 400 13px var(--body); color: var(--label); text-decoration: none; transition: border-color .15s, color .15s; }

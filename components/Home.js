@@ -168,7 +168,7 @@ export default function Home() {
       {data && data.past.filter(s => !s.archived && s.n > 0).length > 0 && (
         <footer className="foot">
           <div className="foot-label">
-            <span className="kicker">Past workshops</span>
+            <h2 className="foot-head">Past workshops</h2>
             <p className="foot-desc">Browse the story maps and see where others placed their decisions.</p>
           </div>
           <span className="foot-links">
