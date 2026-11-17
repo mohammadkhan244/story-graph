@@ -437,8 +437,13 @@ footer.foot a { color: var(--label); }
 .tm-toggle { align-self: flex-start; }
 
 .tm-byline { display: flex; align-items: center; gap: 12px; }
-.tm-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-.tm-initials { width: 44px; height: 44px; border-radius: 50%; background: var(--sage); color: var(--ink); display: flex; align-items: center; justify-content: center; font: 700 15px var(--body); flex-shrink: 0; }
+.tm-avatar {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  background: var(--sage) center/cover no-repeat;
+  color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  font: 700 15px var(--body);
+}
 .tm-name { font: 700 15px var(--body); color: var(--paper); }
 .tm-role { font: 400 13px var(--body); color: var(--muted); }
 

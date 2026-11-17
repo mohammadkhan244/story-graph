@@ -3,21 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { testimonials } from '@/lib/testimonials';
 
 function Avatar({ item }) {
-  const [failed, setFailed] = useState(false);
   const initials = item.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-  if (!item.photo || failed) {
-    return <div className="tm-initials" aria-hidden="true">{initials}</div>;
-  }
-  return (
-    <img
-      src={item.photo}
-      alt=""
-      width={44}
-      height={44}
-      className="tm-photo"
-      onError={() => setFailed(true)}
-    />
-  );
+  const style = item.photo ? { backgroundImage: `url(${item.photo})` } : undefined;
+  return <div className="tm-avatar" style={style} aria-hidden="true">{initials}</div>;
 }
 
 export default function Testimonials() {
