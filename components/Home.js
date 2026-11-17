@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { SETS, SUITS, artSvg, decision } from '@/lib/cards';
 import BrandBar from './BrandBar';
+import Testimonials from './Testimonials';
 
 /* Four cards at a time. Click a card, the exercise starts. */
 export default function Home() {
@@ -85,6 +86,7 @@ export default function Home() {
         </ol>
         <p className="howto-example">A founder planning a move abroad wrote a day in his new city. The loneliness he was leaving showed up in the story anyway.</p>
       </section>
+      <Testimonials />
       <h2 className="pick-head">What decision are you facing?</h2>
       {err && <p className="warn center">{err}</p>}
       {!data && !err && <p className="note center">Shuffling the deck…</p>}

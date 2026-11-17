@@ -399,6 +399,88 @@ footer.foot a { color: var(--label); }
   .sticky-cta a { flex: 1; display: block; text-align: center; padding: 13px; background: var(--ruby-site); color: var(--paper); border-radius: 8px; text-decoration: none; font: 700 15px var(--body); }
 }
 
+/* ---------- testimonials ---------- */
+.tm-section {
+  max-width: 640px;
+  margin: 0 auto 48px;
+}
+
+.tm-track { overflow: hidden; }
+
+.tm-track.tm-multi {
+  overflow-x: scroll;
+  scroll-snap-type: x mandatory;
+  display: flex;
+  scrollbar-width: none;
+}
+.tm-track.tm-multi::-webkit-scrollbar { display: none; }
+
+.tm-slide {
+  width: 100%;
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+
+.tm-card {
+  background: var(--frame);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tm-pull { margin: 0; padding: 0; border: 0; }
+.tm-pull p { font: 400 20px/1.6 var(--title); color: var(--paper); margin: 0; }
+
+.tm-toggle { align-self: flex-start; }
+
+.tm-byline { display: flex; align-items: center; gap: 12px; }
+.tm-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.tm-initials { width: 44px; height: 44px; border-radius: 50%; background: var(--sage); color: var(--ink); display: flex; align-items: center; justify-content: center; font: 700 15px var(--body); flex-shrink: 0; }
+.tm-name { font: 700 15px var(--body); color: var(--paper); }
+.tm-role { font: 400 13px var(--body); color: var(--muted); }
+
+.tm-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.tm-arrow {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--frame);
+  color: var(--label);
+  font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.tm-arrow:hover:not(:disabled) { transform: none; border-color: var(--sage); color: var(--paper); }
+
+.tm-dots { display: flex; gap: 6px; align-items: center; }
+.tm-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--frame);
+  border: 1px solid var(--muted);
+  padding: 0;
+  cursor: pointer;
+}
+.tm-dot:hover:not(:disabled) { transform: none; background: var(--sage-deep); }
+.tm-dot.on { background: var(--sage); border-color: var(--sage); }
+
+@media (max-width: 640px) {
+  .tm-section { padding: 0 16px; }
+  .tm-pull p { font-size: 17px; }
+  .tm-has-nav .tm-nav .tm-arrow { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .deck > div .pcard { --tilt: 0deg; transform: none !important; }
