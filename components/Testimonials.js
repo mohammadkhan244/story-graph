@@ -87,7 +87,14 @@ export default function Testimonials() {
           >
             <div className="tm-card">
               <blockquote className="tm-pull">
-                <p>&#8220;{expandedIdx === i ? item.full : item.pull}&#8221;</p>
+                {expandedIdx === i
+                  ? item.full.split('\n\n').map((para, pi, arr) => (
+                      <p key={pi}>
+                        {pi === 0 && '“'}{para}{pi === arr.length - 1 && '”'}
+                      </p>
+                    ))
+                  : <p>&#8220;{item.pull}&#8221;</p>
+                }
               </blockquote>
               {item.pull !== item.full && (
                 <button

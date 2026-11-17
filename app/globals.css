@@ -437,6 +437,7 @@ footer.foot { max-width: 1000px; margin: 70px auto 0; padding-top: 24px; border-
 
 .tm-pull { margin: 0; padding: 0; border: 0; }
 .tm-pull p { font: 400 20px/1.6 var(--title); color: var(--paper); margin: 0; }
+.tm-pull p + p { margin-top: 14px; }
 
 .tm-toggle { align-self: flex-start; }
 
