@@ -167,10 +167,13 @@ export default function Home() {
       )}
       {data && data.past.filter(s => !s.archived && s.n > 0).length > 0 && (
         <footer className="foot">
-          <span>See where others landed in past sessions:</span>
-          <span className="row">
+          <div className="foot-label">
+            <span className="kicker">Past workshops</span>
+            <p className="foot-desc">Browse the story maps and see where others placed their decisions.</p>
+          </div>
+          <span className="foot-links">
             {data.past.filter(s => !s.archived && s.n > 0).map((s) => (
-              <a key={s.id} href={`/m/${s.id}`}>{s.title}</a>
+              <a key={s.id} href={`/m/${s.id}`} className="foot-chip">{s.title}</a>
             ))}
           </span>
         </footer>

@@ -5,7 +5,7 @@ import { testimonials } from '@/lib/testimonials';
 function Avatar({ item }) {
   const initials = item.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   const style = item.photo ? { backgroundImage: `url(${item.photo})` } : undefined;
-  return <div className="tm-avatar" style={style} aria-hidden="true">{initials}</div>;
+  return <div className="tm-avatar" style={style} aria-hidden="true">{item.photo ? null : initials}</div>;
 }
 
 export default function Testimonials() {
