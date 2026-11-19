@@ -9,7 +9,12 @@
       "Bash(node -e \"const c=require\\('crypto'\\);console.log\\(c.randomBytes\\(32\\).toString\\('base64url'\\)\\)\")",
       "Bash(vercel link *)",
       "Bash(npm run *)",
-      "Bash(git bundle *)"
+      "Bash(git bundle *)",
+      "Bash(git -C \"c:\\\\Users\\\\moham\\\\OneDrive\\\\Desktop\\\\3.0-Resources\\\\GitHub Websites\\\\story-graph\" status)",
+      "Bash(git -C \"c:\\\\Users\\\\moham\\\\OneDrive\\\\Desktop\\\\3.0-Resources\\\\GitHub Websites\\\\story-graph\" log --oneline -5)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\moham\\\\OneDrive\\\\Desktop\\\\3.0-Resources\\\\GitHub Websites\\\\story-graph\\\\public\\\\testimonials\")",
+      "Bash(Write-Output \"created\")",
+      "Bash(node -e ' *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\moham\\OneDrive\\Desktop\\3.0-Resources\\GitHub Websites\\story-graph\\app\\api\\p",

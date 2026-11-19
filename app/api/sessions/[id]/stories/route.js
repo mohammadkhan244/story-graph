@@ -19,6 +19,13 @@ export async function POST(req, { params }) {
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
     const s = (await q('select * from sessions where id=$1', [params.id]))[0];
     if (!s) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+    // Two-round gate: once current_round=2, only R1 submissions within 2-min grace are accepted
+    if ((s.current_round || 1) === 2 && st.round === 1) {
+      const r2Ms = s.round2_at ? Date.now() - new Date(s.round2_at).getTime() : Infinity;
+      if (r2Ms > 120000) return NextResponse.json({ error: 'Round 1 is closed.' }, { status: 403 });
+    }
+
     const isPaused = !!s.paused_at;
     const startedBeforeEnd = typeof b.started_at === 'number' && s.ends_at && b.started_at < new Date(s.ends_at).getTime();
     const grace = startedBeforeEnd ? GRACE_STARTED_MS : GRACE_DEFAULT_MS;

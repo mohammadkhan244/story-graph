@@ -495,6 +495,48 @@ footer.foot { max-width: 1000px; margin: 70px auto 0; padding-top: 24px; border-
   .tm-has-nav .tm-nav .tm-arrow { display: none; }
 }
 
+/* ---------- two-round controls ---------- */
+.round-seg { display: flex; border: 1px solid var(--frame); border-radius: 8px; overflow: hidden; width: 100%; }
+.round-seg-btn { flex: 1; background: none; border: 0; border-radius: 0; padding: 10px 8px; font: 600 11px var(--labelf); letter-spacing: .1em; text-transform: uppercase; color: var(--label); border-right: 1px solid var(--frame); min-height: 44px; }
+.round-seg-btn:last-child { border-right: 0; }
+.round-seg-btn.on { background: var(--frame); color: var(--paper); }
+.round-seg-btn:hover:not(.on):not(:disabled) { transform: none; background: rgba(255,253,246,0.05); }
+
+/* timer banner used for round announcements */
+.timer-banner { background: var(--frame); border: 1px solid var(--sage-deep); border-radius: 8px; padding: 10px 18px; text-align: center; font: 600 14px var(--labelf); letter-spacing: .1em; text-transform: uppercase; color: var(--paper); animation: rise .35s both; }
+
+/* R2 write: collapsible "Your first story" */
+.r1-collapse { border: 1px solid var(--frame); border-radius: 8px; margin: 0 0 14px; overflow: hidden; }
+.r1-collapse summary { cursor: pointer; padding: 10px 14px; font: 600 12px var(--labelf); letter-spacing: .12em; text-transform: uppercase; color: var(--label); list-style: none; display: flex; justify-content: space-between; align-items: center; }
+.r1-collapse summary::-webkit-details-marker { display: none; }
+.r1-collapse summary::after { content: '▾'; font: 400 14px var(--body); }
+.r1-collapse[open] summary::after { content: '▴'; }
+.r1-collapse .r1-body { padding: 0 14px 14px; border-top: 1px solid var(--frame); }
+.r1-collapse .r1-body p { font: 400 15px/1.6 var(--title); color: var(--label); margin: 10px 0 0; white-space: pre-wrap; }
+
+/* Survived / disappeared table */
+.flip-wrap { border: 1px solid var(--frame); border-radius: 10px; overflow: hidden; margin-top: 4px; animation: rise .4s both; }
+.flip-table { display: grid; grid-template-columns: 1fr 1fr; }
+.flip-col { padding: 14px 16px; }
+.flip-col:first-child { border-right: 1px solid var(--frame); }
+.flip-col-head { font: 600 10px var(--labelf); letter-spacing: .14em; text-transform: uppercase; color: var(--sage); margin: 0 0 10px; }
+.flip-col ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.flip-col li { font: 400 14px/1.5 var(--body); color: var(--label); padding-left: 12px; position: relative; }
+.flip-col li::before { content: '—'; position: absolute; left: 0; color: var(--frame); }
+.flip-loading { padding: 14px 16px; font: 400 14px var(--body); color: var(--muted); font-style: italic; }
+.flip-error { padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+@media (max-width: 640px) {
+  .flip-table { grid-template-columns: 1fr; }
+  .flip-col:first-child { border-right: 0; border-bottom: 1px solid var(--frame); }
+}
+
+/* Sticky submit bar on mobile (write stage) */
+.write-submit-bar { margin-top: 18px; }
+@media (max-width: 600px) {
+  .write-submit-bar { position: sticky; bottom: 0; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: var(--ink); border-top: 1px solid var(--frame); margin-top: 10px; display: flex; justify-content: center; }
+  .write-submit-bar button.big { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .deck > div .pcard { --tilt: 0deg; transform: none !important; }

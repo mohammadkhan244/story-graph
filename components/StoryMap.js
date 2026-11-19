@@ -133,7 +133,7 @@ function QuadTitle({ qt, side, isMobile }) {
 }
 
 export default function StoryMap({
-  axes, quads, quadrants: quadrantsProp, points = [], background = [], youId, selId, onSelect, onMove,
+  axes, quads, quadrants: quadrantsProp, points = [], background = [], youId, youId2, selId, onSelect, onMove,
   arrowFor, onArrow, showArrows = true, showLabels = true, reveal = false, big = false,
   pastArrowEnds, whatIfFor, whatIfTo,
 }) {
@@ -145,10 +145,26 @@ export default function StoryMap({
   const [svgWidth, setSvgWidth] = useState(0);
   const [tapLabel, setTapLabel] = useState(null);
   const [hovered, setHovered] = useState(null);
+  const [pairSel, setPairSel] = useState(null);
 
   const ax = (axes && axes.x) || {}, ay = (axes && axes.y) || {};
   const isMobile = svgWidth < 640;
   const displayPoints = spreadOverlaps(points);
+
+  // Auto-compute R1→R2 pairs from participant_id + round fields
+  const pairsByPid = {};
+  for (const p of displayPoints) {
+    if (!p.participant_id || p.x == null || p.y == null) continue;
+    if (!pairsByPid[p.participant_id]) pairsByPid[p.participant_id] = {};
+    if (p.round === 1) pairsByPid[p.participant_id].r1 = p;
+    else if (p.round === 2) pairsByPid[p.participant_id].r2 = p;
+  }
+  const roundPairs = Object.values(pairsByPid).filter((pair) => pair.r1 && pair.r2);
+  const pidForId = {};
+  for (const p of displayPoints) { if (p.participant_id) pidForId[p.id] = p.participant_id; }
+  const pairSelIds = pairSel
+    ? new Set([pairsByPid[pairSel]?.r1?.id, pairsByPid[pairSel]?.r2?.id].filter(Boolean))
+    : null;
   const qn = normalizeQuads(quadrantsProp, quads);
   const hasQuads = !!(qn && (qn.tl?.name || qn.tr?.name || qn.bl?.name || qn.br?.name));
 
@@ -184,7 +200,7 @@ export default function StoryMap({
 
   /* Label visibility: YOU always, others on hover/tap/select; presenter showLabels=all */
   function showLabel(p) {
-    if (p.id === youId) return true;
+    if (p.id === youId || p.id === youId2) return true;
     if (p.isTest) return true;
     if (isMobile) return tapLabel === p.id;
     return showLabels || hovered === p.id || selId === p.id;
@@ -202,7 +218,7 @@ export default function StoryMap({
   const mPct = `${(M / W * 100).toFixed(3)}%`;
 
   return (
-    <div className="map-layout" ref={containerRef} onClick={() => { tapLabel && setTapLabel(null); }}>
+    <div className="map-layout" ref={containerRef} onClick={() => { tapLabel && setTapLabel(null); pairSel && setPairSel(null); }}>
 
       {/* Quadrant titles above — OUTSIDE the dark mapwrap box */}
       {hasQuads && (
@@ -229,7 +245,7 @@ export default function StoryMap({
           <svg ref={svgRef}
             className={'map' + (drawing ? ' drawing' : '') + (big ? ' big' : '') + (reveal ? ' reveal' : '')}
             viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Map of ${n} stories`} {...surface}
-            onClick={(e) => { if (!drawing) tapLabel && setTapLabel(null); }}>
+            onClick={(e) => { if (!drawing) { tapLabel && setTapLabel(null); pairSel && setPairSel(null); } }}>
 
             {/* Quadrant tint rects (clipped to rounded rectangle) */}
             <defs>
@@ -290,6 +306,18 @@ export default function StoryMap({
               );
             })()}
 
+            {/* Round pair dashed lines (drawn under dots) */}
+            {roundPairs.map((pair) => {
+              const dimmed = !!(pairSelIds && !pairSelIds.has(pair.r1.id));
+              return (
+                <line key={`pair-${pair.r1.id}`}
+                  x1={px(pair.r1.x)} y1={py(pair.r1.y)}
+                  x2={px(pair.r2.x)} y2={py(pair.r2.y)}
+                  stroke="#afbeb1" strokeWidth={2} strokeDasharray="4 4"
+                  opacity={dimmed ? 0.1 : 0.65} />
+              );
+            })}
+
             {/* Dots */}
             {ordered.map((p, i) => {
               const scored = p.x != null && p.y != null;
@@ -297,26 +325,34 @@ export default function StoryMap({
               let x = p.x, y = p.y;
               if (drag && drag.id === p.id && drag.moved) { x = drag.x; y = drag.y; }
               const you = !!(youId && p.id === youId);
+              const youR2 = !!(youId2 && p.id === youId2);
+              const isR2 = p.round === 2;
               const sel = selId === p.id;
               const testDot = !!p.isTest;
               const hollow = p.source === 'card-exercise';
+              const pairDimmed = !!(pairSelIds && !pairSelIds.has(p.id));
               const lbl = showLabel(p);
-              const labelText = you ? 'YOU' : (p.isTest ? 'TEST' : short(p.label || '', 20));
+              const labelText = (you || youR2) ? 'YOU' : (p.isTest ? 'TEST' : short(p.label || '', 20));
               const lcx = labelCx(x, labelText) - px(x);
 
               return (
                 <g key={p.id} className={'dot' + (you ? ' you' : '') + (onMove ? ' drag' : '')}
                   tabIndex={drawing ? -1 : 0} role="button"
-                  style={{ '--i': i }}
-                  aria-label={`${you ? 'Your story' : (p.label || 'Story')}, ${fmt(p.x)} across, ${fmt(p.y)} up`}
+                  style={{ '--i': i, opacity: pairDimmed ? 0.2 : 1 }}
+                  aria-label={`${(you || youR2) ? 'Your story' : (p.label || 'Story')}, ${fmt(p.x)} across, ${fmt(p.y)} up`}
                   transform={`translate(${px(x)} ${py(y)})`}
-                  onMouseEnter={!you && !drawing ? () => setHovered(p.id) : undefined}
-                  onMouseLeave={!you && !drawing ? () => setHovered(null) : undefined}
+                  onMouseEnter={!you && !youR2 && !drawing ? () => setHovered(p.id) : undefined}
+                  onMouseLeave={!you && !youR2 && !drawing ? () => setHovered(null) : undefined}
                   onClick={(e) => {
                     if (drawing) return;
                     e.stopPropagation();
                     if (drag && drag.moved) return;
-                    if (isMobile && !you) setTapLabel(tapLabel === p.id ? null : p.id);
+                    if (isMobile && !you && !youR2) setTapLabel(tapLabel === p.id ? null : p.id);
+                    // pair highlight toggle
+                    const pid = pidForId[p.id];
+                    if (pid && pairsByPid[pid]?.r1 && pairsByPid[pid]?.r2) {
+                      setPairSel((prev) => (prev === pid ? null : pid));
+                    }
                     onSelect && onSelect(p.id);
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect && onSelect(p.id); } }}
@@ -331,8 +367,18 @@ export default function StoryMap({
                   <g className="pop">
                     {you ? (
                       <circle r={13} fill="#a72f39" stroke="#fffdf6" strokeWidth={3} />
+                    ) : youR2 ? (
+                      <circle r={8} fill="none" stroke="#a72f39" strokeWidth={2.5} />
                     ) : testDot ? (
                       <Mark shape="circle" r={sel ? 10 : 8} fill="none" stroke="#a72f39" sw={sel ? 3 : 2} />
+                    ) : isR2 ? (
+                      <>
+                        {p.body != null && <circle r={sel ? 12 : 10} fill="none" stroke="#afbeb1" strokeWidth={1} opacity={0.35} />}
+                        <Mark shape={shape(p.signal)} r={sel ? 8 : 6}
+                          fill="none"
+                          stroke={sel ? '#fffdf6' : '#afbeb1'}
+                          sw={1.5} />
+                      </>
                     ) : (
                       <>
                         {p.body != null && <circle r={sel ? 16 : 14} fill="none" stroke="#afbeb1" strokeWidth={1.5} opacity={0.45} />}
@@ -347,10 +393,10 @@ export default function StoryMap({
                   {/* Label / tooltip */}
                   {lbl && labelText && (
                     <text
-                      className={'dlab' + (you ? ' me' : testDot ? ' test' : '')}
+                      className={'dlab' + ((you || youR2) ? ' me' : testDot ? ' test' : '')}
                       textAnchor="middle"
                       y={you ? 28 : (isMobile ? -18 : -18)}
-                      style={{ fontSize: you ? 11 : 11 }}>
+                      style={{ fontSize: 11 }}>
                       <tspan x={lcx}>{labelText}</tspan>
                     </text>
                   )}

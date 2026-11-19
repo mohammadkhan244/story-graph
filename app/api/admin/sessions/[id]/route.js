@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { q } from '@/lib/db';
+import { q, newId } from '@/lib/db';
 import { isAdmin, denied, fail } from '@/lib/auth';
+import { saveAndPlace } from '@/lib/submit';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,10 +81,42 @@ export async function PATCH(req, { params }) {
       const clean = b.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
       put('slug', clean || null);
     }
+    if (Array.isArray(b.rounds)) {
+      const rounds = b.rounds.slice(0, 2).map((r) => ({
+        label: String(r.label || '').trim().slice(0, 80),
+        prompt: String(r.prompt || '').trim().slice(0, 2000),
+      }));
+      put('rounds', JSON.stringify(rounds.length ? rounds : null));
+    }
+    if (b.start_round2) {
+      const mins = b.minutes != null ? Math.max(1, Math.min(120, parseInt(b.minutes, 10) || 10)) : s.minutes;
+      put('current_round', 2);
+      put('round2_at', new Date().toISOString());
+      put('status', 'open');
+      put('ends_at', new Date(Date.now() + mins * 60000).toISOString());
+      put('paused_at', null);
+      put('remaining_seconds', null);
+    }
 
-    if (!set.length) return NextResponse.json({ session: s });
-    const r = await q(`update sessions set ${set.join(', ')} where id=$1 returning *`, vals);
-    return NextResponse.json({ session: r[0] });
+    let updated = s;
+    if (set.length) {
+      const r = await q(`update sessions set ${set.join(', ')} where id=$1 returning *`, vals);
+      updated = r[0];
+    }
+
+    // Seed pair creation (requires axes to place stories)
+    if (b.add_seed_pair) {
+      const { name = '', r1 = '', r2 = '' } = b.add_seed_pair;
+      const r1Body = String(r1).trim(), r2Body = String(r2).trim();
+      if (r1Body && r2Body) {
+        const pid = newId(12);
+        const sess = updated;
+        await saveAndPlace(sess, { body: r1Body, name: String(name).trim().slice(0, 60), signal: '', headline: '', context: '', shared: true, isTest: false, participantId: pid, round: 1 });
+        await saveAndPlace(sess, { body: r2Body, name: String(name).trim().slice(0, 60), signal: '', headline: '', context: '', shared: true, isTest: false, participantId: pid, round: 2 });
+      }
+    }
+
+    return NextResponse.json({ session: updated });
   } catch (e) { return fail(e); }
 }
 

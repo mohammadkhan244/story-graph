@@ -144,11 +144,16 @@ function corners(points, me) {
 }
 function cornerPoles(k, axes) { return `${k[0] === 'l' ? axes.x.low : axes.x.high} + ${k[1] === 'l' ? axes.y.low : axes.y.high}`; }
 
+function genPid() { return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8); }
+
 export default function Flow({ mode, id }) {
   const isSession = mode === 'session';
   const base = isSession ? `/api/sessions/${id}` : `/api/p/${id}`;
   const mineKey = `sm-mine-${mode}-${id}`;
   const draftKey = `sm-draft-${mode}-${id}`;
+  const mine2Key = `sm-mine2-${mode}-${id}`;
+  const draft2Key = `sm-draft-r2-${mode}-${id}`;
+  const pidKey = `sm_pid_${id}`;
 
   const [s, setS] = useState(null);
   const [map, setMap] = useState(null);
@@ -194,6 +199,17 @@ export default function Flow({ mode, id }) {
   const [showMap, setShowMap] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [timerBanner, setTimerBanner] = useState('');
+  // Two-round state
+  const [clientRound, setClientRound] = useState(1);
+  const [mine2, setMine2] = useState(null);
+  const [r2Text, setR2Text] = useState('');
+  const [r2Headline, setR2Headline] = useState('');
+  const [r2Shared, setR2Shared] = useState(false);
+  const [r2Submitting, setR2Submitting] = useState(false);
+  const [roundFilter, setRoundFilter] = useState('both');
+  const [r1Expanded, setR1Expanded] = useState(false);
+  const [flipLoading, setFlipLoading] = useState(false);
+  const [flipError, setFlipError] = useState(false);
   const recRef = useRef(null);
   const taRef = useRef(null);
   const mapRef = useRef(null);
@@ -201,6 +217,7 @@ export default function Flow({ mode, id }) {
   const readingTouchX = useRef(null);
   const lastEndsAt = useRef(undefined);
   const lastPausedAt = useRef(undefined);
+  const clientRoundRef = useRef(1);
   const readingKey = `sm-reading-${mode}-${id}`;
   const questionsKey = `sm-questions-${mode}-${id}`;
 
@@ -217,15 +234,39 @@ export default function Flow({ mode, id }) {
       const m = ls.get(mineKey);
       const d = ls.get(draftKey);
       const sess = j.session;
+      const isTR = !!(sess.rounds && sess.rounds.length > 0);
 
       if (isSession) {
+        // Initialize participant ID for two-round sessions
+        if (isTR && !ls.get(pidKey)) ls.set(pidKey, genPid());
+
+        const m2 = ls.get(mine2Key);
+        if (m2) { setMine2(m2); setClientRound(2); clientRoundRef.current = 2; }
+
         if (m) {
           setMine(m);
+          if (isTR && !m2 && (sess.currentRound || 1) === 2) {
+            // R1 done, server is in R2, R2 not yet written
+            setClientRound(2); clientRoundRef.current = 2;
+            const d2 = ls.get(draft2Key);
+            if (d2?.text) setR2Text(d2.text);
+            setR2Shared(m.story?.shared ?? false);
+            setStage('write2');
+            return;
+          }
           const hasDir = m.story && (m.story.arrow || m.story.stays);
           setStage(j.map ? (hasDir ? 'end' : 'map') : 'waiting');
           return;
         }
         if (!(sess.status === 'open')) { setStage('closed'); return; }
+        if (isTR && (sess.currentRound || 1) === 2) {
+          // Fresh visitor, server already in R2
+          setClientRound(2); clientRoundRef.current = 2;
+          const d2 = ls.get(draft2Key);
+          if (d2?.text) setR2Text(d2.text);
+          setStage('write2');
+          return;
+        }
         if (d) { setContext(d.context || ''); setSignal(d.signal || null); setText(d.text || ''); setStartedAt(d.startedAt || null); }
         const needsScene = (sess.ask && !d?.context) || (sess.signals && sess.signals.length && !d?.signal);
         setStage(d && d.text ? 'write' : needsScene ? 'scene' : 'write');
@@ -254,6 +295,13 @@ export default function Flow({ mode, id }) {
     return () => clearTimeout(t);
   }, [context, signal, text, startedAt, stage, mine]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* keep R2 draft safe */
+  useEffect(() => {
+    if (!isTwoRound || mine2) return;
+    const t = setTimeout(() => ls.set(draft2Key, { text: r2Text }), 500);
+    return () => clearTimeout(t);
+  }, [r2Text, mine2, isTwoRound]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function showBanner(text) {
     if (!text) return;
     setTimerBanner(text);
@@ -261,12 +309,22 @@ export default function Flow({ mode, id }) {
     bannerTimer.current = setTimeout(() => setTimerBanner(''), 3000);
   }
 
-  /* sessions: wait for open/map (closed/waiting) and sync timer state (write) */
+  /* sessions: wait for open/map (closed/waiting) and sync timer + round transitions */
   useEffect(() => {
-    if (!isSession || !['closed', 'waiting', 'write'].includes(stage)) return;
-    if (stage !== 'write') { lastEndsAt.current = undefined; lastPausedAt.current = undefined; }
+    if (!isSession || !['closed', 'waiting', 'write', 'write2'].includes(stage)) return;
+    if (stage !== 'write' && stage !== 'write2') { lastEndsAt.current = undefined; lastPausedAt.current = undefined; }
     const t = setInterval(() => load().then((j) => {
       const sess = j.session;
+      const isTR = !!(sess.rounds && sess.rounds.length > 0);
+      // Round 2 transition: detect server switching to round 2
+      if (isTR && (sess.currentRound || 1) === 2 && clientRoundRef.current === 1) {
+        clientRoundRef.current = 2;
+        setClientRound(2);
+        const label = sess.rounds?.[1]?.label;
+        showBanner(label ? `Round 2: ${label}` : 'Round 2');
+        setStage((prev) => !['write2', 'name2', 'placing2'].includes(prev) ? 'write2' : prev);
+        return;
+      }
       if (stage === 'closed' && sess.status === 'open') setStage(sess.ask || (sess.signals || []).length ? 'scene' : 'write');
       if (stage === 'waiting' && j.map) { setReveal(true); setStage('map'); }
       if (stage === 'write') {
@@ -303,7 +361,7 @@ export default function Flow({ mode, id }) {
     setTimeout(() => taRef.current && taRef.current.focus(), 50);
   }
 
-  function toggleMic() {
+  function toggleMic(isR2 = false) {
     const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!SR) { setMsg('Speaking works in Chrome and Safari. Typing works everywhere.'); return; }
     if (listening && recRef.current) { recRef.current.stop(); return; }
@@ -311,20 +369,24 @@ export default function Flow({ mode, id }) {
     r.onresult = (e) => {
       let add = '';
       for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) add += e.results[i][0].transcript;
-      if (add) setText((t) => (t && !/\s$/.test(t) ? t + ' ' : t) + add.trim());
+      if (add) {
+        if (isR2) setR2Text((t) => (t && !/\s$/.test(t) ? t + ' ' : t) + add.trim());
+        else setText((t) => (t && !/\s$/.test(t) ? t + ' ' : t) + add.trim());
+      }
     };
     r.onend = () => setListening(false);
     r.onerror = () => setListening(false);
     recRef.current = r; r.start(); setListening(true);
-    if (!startedAt) setStartedAt(Date.now());
+    if (!isR2 && !startedAt) setStartedAt(Date.now());
   }
 
   async function submit() {
     setSubmitting(true); setStage('placing'); setMsg('');
     try {
+      const pid = isTwoRound ? (ls.get(pidKey) || (() => { const p = genPid(); ls.set(pidKey, p); return p; })()) : null;
       const r = await fetch(`${base}/stories`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, headline, name, shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp, started_at: startedAt }),
+        body: JSON.stringify({ text, headline, name, shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp, started_at: startedAt, ...(pid && { participant_id: pid, round: 1 }) }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Could not save your story.');
@@ -337,6 +399,25 @@ export default function Flow({ mode, id }) {
     finally { setSubmitting(false); }
   }
 
+  async function submitR2() {
+    setR2Submitting(true); setStage('placing2'); setMsg('');
+    const pid = ls.get(pidKey) || (() => { const p = genPid(); ls.set(pidKey, p); return p; })();
+    try {
+      const r = await fetch(`${base}/stories`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: r2Text, headline: r2Headline, name: mine?.story?.name || '', shared: r2Shared, context: '', signal: '', website: '', participant_id: pid, round: 2 }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Could not save your story.');
+      const m2 = { story: j.story, token: j.token };
+      ls.set(mine2Key, m2); ls.del(draft2Key); setMine2(m2);
+      if (j.warning) setMsg(j.warning);
+      if (j.map) { setMap(j.map); setReveal(true); setTimeout(() => setStage('map'), 900); }
+      else setStage('waiting');
+    } catch (e) { setMsg(String(e.message || e)); setStage('name2'); }
+    finally { setR2Submitting(false); }
+  }
+
   async function saveArrow(body) {
     if (!mine) return;
     const r = await fetch(`/api/stories/${mine.story.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: mine.token, ...body }) });
@@ -344,13 +425,26 @@ export default function Flow({ mode, id }) {
     return true;
   }
 
+  const isTwoRound = !!(s && s.rounds && s.rounds.length > 0);
   const points = useMemo(() => {
     const pts = (map && map.points) || [];
-    if (!mine) return pts;
-    const has = pts.some((p) => p.id === mine.story.id);
-    return has ? pts : [...pts, { ...mine.story, label: 'You' }];
-  }, [map, mine]);
+    let result = [...pts];
+    if (mine) {
+      const has = pts.some((p) => p.id === mine.story.id);
+      if (!has) result = [...result, { ...mine.story, label: 'You' }];
+    }
+    if (mine2) {
+      const has = pts.some((p) => p.id === mine2.story.id);
+      if (!has) result = [...result, { ...mine2.story, label: 'You' }];
+    }
+    return result;
+  }, [map, mine, mine2]);
+  const displayPoints = useMemo(() => {
+    if (!isTwoRound || roundFilter === 'both') return points;
+    return points.filter((p) => String(p.round || 1) === roundFilter);
+  }, [points, isTwoRound, roundFilter]);
   const me = mine ? points.find((p) => p.id === mine.story.id) : null;
+  const me2 = mine2 ? points.find((p) => p.id === mine2.story.id) : null;
   const myQsTemplate = s && map && map.axes ? questions(map.axes, me) : [];
   const myQs = myQsData ? myQsData : myQsTemplate;
 
@@ -374,6 +468,7 @@ export default function Flow({ mode, id }) {
   }
   function restart() {
     ls.del(mineKey); ls.del(draftKey); ls.del(arrowsKey); ls.del(readingKey); ls.del(questionsKey);
+    ls.del(mine2Key); ls.del(draft2Key); ls.del(pidKey);
     window.location.reload();
   }
 
@@ -436,7 +531,10 @@ export default function Flow({ mode, id }) {
   useEffect(() => {
     // Keep map visible on all stages — user controls visibility with the toggle button
     setShowMap(true);
-  }, [stage]);
+    // Default R2 shared flag to R1's choice when entering write2 stage
+    if (stage === 'write2') setR2Shared(mine?.story?.shared ?? false);
+  }, [stage]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { clientRoundRef.current = clientRound; }, [clientRound]);
 
   async function fetchPersonalizedQuestions(body) {
     if (!mine) return;
@@ -496,7 +594,7 @@ export default function Flow({ mode, id }) {
   if (err) return <main className="flow"><BrandBar /><p className="warn center">{err}</p></main>;
   if (!s || stage === 'loading') return <main className="flow"><BrandBar /><p className="note center">Loading…</p></main>;
 
-  const stepIdx = { scene: 0, write: 1, name: 2, placing: 2, waiting: 3, map: 3, think: 4, end: 4 }[stage] ?? 0;
+  const stepIdx = { scene: 0, write: 1, name: 2, placing: 2, waiting: 3, map: 3, think: 4, end: 4, write2: 1, name2: 2, placing2: 2 }[stage] ?? 0;
   const lead = leadLine(s, context, signal);
   const slug = s.cardSlug || s.slug || 'keep-circling';
   const dec = decision(s.cardSlug || s.slug, s.title);
@@ -681,6 +779,64 @@ export default function Flow({ mode, id }) {
         </section>
       )}
 
+      {stage === 'write2' && (
+        <section className="stage">
+          <div className="stage-head" style={{ marginBottom: 10 }}>
+            {s.rounds?.[1]?.label && <p className="kicker">{s.rounds[1].label}</p>}
+            {(s.rounds?.[1]?.prompt || s.bigQuestion || dec.q) && (
+              <p className="scene">{s.rounds?.[1]?.prompt || s.bigQuestion || dec.q}</p>
+            )}
+            <p className="anchor">{ANCHOR}</p>
+          </div>
+          {timerBanner && <div className="timer-banner" role="status" aria-live="polite">{timerBanner}</div>}
+          <div className="writebar">
+            <span className="note">{r2Text.trim() ? r2Text.trim().split(/\s+/).length : 0} words</span>
+            <button type="button" className={'quiet mic' + (listening ? ' live' : '')} onClick={() => toggleMic(true)}>{listening ? 'Listening… tap to stop' : 'Speak 🎙'}</button>
+          </div>
+          {mine && (
+            <details className="r1-collapse" open={r1Expanded} onToggle={(e) => setR1Expanded(e.currentTarget.open)}>
+              <summary>Your first story</summary>
+              <div className="r1-body"><p>{mine.story.body}</p></div>
+            </details>
+          )}
+          <textarea ref={taRef} className="page" aria-label="Your round 2 story" value={r2Text} onChange={(e) => setR2Text(e.target.value)} placeholder="I wake up and the first thing I see is…" />
+          <div className="rules"><span>Don't plan it</span><span>Don't make it good</span><span>Anything is valid</span><span>Keep going</span></div>
+          <div className="write-submit-bar">
+            <button className="big" type="button" disabled={r2Text.trim().length < 20} onClick={() => { if (recRef.current) recRef.current.stop(); setStage('name2'); }}>I'm done writing →</button>
+          </div>
+          {msg && <p className="note center" style={{ marginTop: 10 }}>{msg}</p>}
+        </section>
+      )}
+
+      {stage === 'name2' && (
+        <section className="stage narrow">
+          <div className="stage-head">
+            <h3>Give this future a name.</h3>
+            <p className="sub">Three to five words. What you'd call this world.</p>
+          </div>
+          <form className="stack" onSubmit={(e) => { e.preventDefault(); submitR2(); }}>
+            <input autoFocus aria-label="Scenario headline" value={r2Headline} maxLength={80} onChange={(e) => setR2Headline(e.target.value)} placeholder="The quiet pivot" style={{ font: "400 24px var(--title)", textAlign: 'center' }} />
+            <label className="check"><input type="checkbox" checked={r2Shared} onChange={(e) => setR2Shared(e.target.checked)} /> Let others read this story too</label>
+            <div className="center" style={{ gap: 10, marginTop: 8 }}>
+              <button className="big primary" type="submit" disabled={r2Submitting}>{r2Submitting ? 'Placing your story…' : 'Place this story on the map'}</button>
+              <button type="button" className="textlink" disabled={r2Submitting} onClick={() => setStage('write2')}>Back to my story</button>
+            </div>
+            {msg && <p className="warn center">{msg}</p>}
+          </form>
+        </section>
+      )}
+
+      {stage === 'placing2' && (
+        <section className="stage placing">
+          <svg viewBox="0 0 180 180" aria-hidden="true">
+            {[34, 54, 74, 88].map((r, i) => <ellipse key={i} cx="90" cy="90" rx={r} ry={r * 0.55} fill="none" stroke={i % 2 ? '#79998b' : '#afbeb1'} strokeWidth="1.5" />)}
+            <circle cx="90" cy="90" r="8" fill="#a72f39" />
+          </svg>
+          <h3>Placing your round 2 story…</h3>
+          <LoadingBar stages={PLACING_STAGES} />
+        </section>
+      )}
+
       {stage === 'waiting' && (
         <section className="stage center" style={{ gap: 16, paddingTop: 30 }}>
           <h3>Your story is in. Look up at the screen.</h3>
@@ -692,9 +848,16 @@ export default function Flow({ mode, id }) {
       {(stage === 'map' || stage === 'think' || stage === 'end') && map && map.axes && (
         <section className="stage mapgrid" data-stage={stage}>
           <div>
+            {isTwoRound && (
+              <div className="round-seg" style={{ maxWidth: 300, margin: '0 auto 12px' }}>
+                {[['1', 'Round 1'], ['both', 'Both'], ['2', 'Round 2']].map(([v, label]) => (
+                  <button key={v} type="button" className={'round-seg-btn' + (roundFilter === v ? ' on' : '')} onClick={() => setRoundFilter(v)}>{label}</button>
+                ))}
+              </div>
+            )}
             <div ref={mapRef} className={showMap ? '' : 'map-collapsed'}>
-              <StoryMap axes={map.axes} quads={map.quads} quadrants={map.quadrants} points={points} background={map.background || []}
-                youId={mine && mine.story.id} selId={peek} reveal={reveal}
+              <StoryMap axes={map.axes} quads={map.quads} quadrants={map.quadrants} points={displayPoints} background={map.background || []}
+                youId={mine && mine.story.id} youId2={mine2 && mine2.story.id} selId={peek} reveal={reveal}
                 onSelect={(pid) => setPeek(pid === peek ? null : pid)}
                 arrowFor={drawing && mine ? mine.story.id : null} onArrow={setArrow}
                 pastArrowEnds={pastArrows.length ? pastArrows : undefined} />
@@ -797,6 +960,43 @@ export default function Flow({ mode, id }) {
 
             {stage === 'end' && (
               <div className="stack">
+                {/* Round comparison table (R2 participants with an R1 story only, never public) */}
+                {mine2 && mine && (() => {
+                  const flip = mine2.story?.flip;
+                  const retryFlip = async () => {
+                    setFlipLoading(true); setFlipError(false);
+                    try {
+                      const r = await fetch(`/api/stories/${mine2.story.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: mine2.token, retry_flip: true }) });
+                      const j = await r.json();
+                      if (j.flip) { const upd = { ...mine2, story: { ...mine2.story, flip: j.flip } }; setMine2(upd); ls.set(mine2Key, upd); }
+                      else setFlipError(true);
+                    } catch { setFlipError(true); }
+                    finally { setFlipLoading(false); }
+                  };
+                  if (flipLoading) return <div key="fl" className="flip-wrap"><div className="flip-loading">Comparing your two stories…</div></div>;
+                  if (!flip || flipError) return (
+                    <div key="fe" className="flip-wrap">
+                      <div className="flip-error">
+                        <span className="note">Couldn't compare. Try again</span>
+                        <button type="button" className="quiet" onClick={retryFlip}>Retry</button>
+                      </div>
+                    </div>
+                  );
+                  return (
+                    <div key="ft" className="flip-wrap">
+                      <div className="flip-table">
+                        <div className="flip-col">
+                          <p className="flip-col-head">Showed up in both</p>
+                          <ul>{(flip.survived || []).map((item, i) => <li key={i}>{item}</li>)}</ul>
+                        </div>
+                        <div className="flip-col">
+                          <p className="flip-col-head">Only when you hit the goal</p>
+                          <ul>{(flip.disappeared || []).map((item, i) => <li key={i}>{item}</li>)}</ul>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {/* Questions appear first, as swipeable cards, before analysis/email */}
                 {!qCardDismissed && (myQsLoading || myQs.length > 0) && (
                   <div className="qcard" key={myQsLoading ? 'loading' : qi}>

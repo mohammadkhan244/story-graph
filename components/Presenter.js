@@ -60,6 +60,7 @@ export default function Presenter({ id }) {
   const [now, setNow] = useState(Date.now());
   const [mins, setMins] = useState(10);
   const [msg, setMsg] = useState('');
+  const [roundFilter, setRoundFilter] = useState('both');
 
   const link = typeof window !== 'undefined' ? `${window.location.origin}/s/${id}` : '';
 
@@ -77,6 +78,8 @@ export default function Presenter({ id }) {
           x: x.x, y: x.y, signal: x.signal, isTest: true,
           arrow: x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null,
           stays: !!x.stays,
+          participant_id: x.participant_id || null,
+          round: x.round || 1,
         }));
       setTestPts(pts);
     } catch {}
@@ -120,7 +123,11 @@ export default function Presenter({ id }) {
   const paused = !!s.pausedAt;
   const open = s.status === 'open' && (paused || !endsAt || now < endsAt);
   const placed = map.points.length;
-  const basePts = showTestStories ? [...map.points, ...testPts] : map.points;
+  const isTwoRound = !!(s.rounds && s.rounds.length > 0);
+  const basePtsAll = showTestStories ? [...map.points, ...testPts] : map.points;
+  const basePts = isTwoRound && roundFilter !== 'both'
+    ? basePtsAll.filter((p) => String(p.round || 1) === roundFilter)
+    : basePtsAll;
   const pts = names ? basePts : basePts.map((p, i) => ({ ...p, label: p.isTest ? 'TEST' : `Story ${i + 1}` }));
 
   async function patch(body) { try { await api(`/api/admin/sessions/${id}`, 'PATCH', body); await load(); } catch (e) { setMsg(e.message); } }
@@ -142,6 +149,15 @@ export default function Presenter({ id }) {
               <button type="button" className="quiet" aria-pressed={arrows} onClick={() => setArrows(!arrows)}>Show arrows live</button>
               {map.background && map.background.length > 0 && <button type="button" className="quiet" aria-pressed={earlier} onClick={() => setEarlier(!earlier)}>Earlier groups</button>}
               <button type="button" className="quiet" aria-pressed={showTestStories} onClick={() => setShowTestStories(!showTestStories)}>Include my test stories</button>
+              {isTwoRound && (
+                <div className="round-seg" style={{ width: 'auto' }}>
+                  {['1', 'both', '2'].map((v) => (
+                    <button key={v} type="button" className={'round-seg-btn' + (roundFilter === v ? ' on' : '')} onClick={() => setRoundFilter(v)}>
+                      {v === 'both' ? 'Both' : `R${v}`}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           {shown ? (
@@ -201,6 +217,16 @@ export default function Presenter({ id }) {
                 )}
                 <button type="button" className="quiet" disabled={!open} onClick={() => patch({ stop: true })}>Close</button>
               </div>
+              {isTwoRound && s.currentRound === 1 && (
+                <div className="row">
+                  <button type="button" onClick={() => patch({ start_round2: true, minutes: mins })}>
+                    Start Round 2{s.rounds[1]?.label ? ` · ${s.rounds[1].label}` : ''}
+                  </button>
+                </div>
+              )}
+              {isTwoRound && s.currentRound === 2 && (
+                <p className="note">Round 2 in progress. Writers have a 2-min grace period for Round 1 submissions.</p>
+              )}
               <label className="check"><input type="checkbox" checked={!!s.published} onChange={(e) => patch({ published: e.target.checked })} /> Show the map on everyone's phone</label>
             </div>
           )}

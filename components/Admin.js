@@ -77,7 +77,8 @@ export default function Admin() {
   const [status, setStatus] = useState({ t: '', warn: false });
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [form, setForm] = useState({ title: '', prompt: '', big_question: '', instructions: '', year: '', signals: '', minutes: 10, featured: false, card_why: '' });
+  const [form, setForm] = useState({ title: '', prompt: '', big_question: '', instructions: '', year: '', signals: '', minutes: 10, featured: false, card_why: '', twoRounds: false, rounds: [{ label: '', prompt: '' }, { label: '', prompt: '' }] });
+  const [seedForm, setSeedForm] = useState({ name: '', r1: '', r2: '' });
   const [nw, setNw] = useState({ title: '', prompt: '', signals: '', minutes: 10 });
   const [axes, setAxes] = useState({ x: emptyAxis, y: emptyAxis });
   const [cands, setCands] = useState([]);
@@ -108,6 +109,7 @@ export default function Admin() {
       if (loadedFor.current !== id) {
         loadedFor.current = id;
         const s = j.session;
+        const r = Array.isArray(s.rounds) && s.rounds.length >= 2 ? s.rounds : [{ label: '', prompt: '' }, { label: '', prompt: '' }];
         setForm({
           title: s.title, prompt: s.prompt,
           big_question: s.big_question || '',
@@ -118,6 +120,8 @@ export default function Admin() {
           hidden: !!s.hidden,
           featured: !!s.featured,
           card_why: s.card_why || '',
+          twoRounds: !!(s.rounds && s.rounds.length > 0),
+          rounds: [{ label: r[0]?.label || '', prompt: r[0]?.prompt || '' }, { label: r[1]?.label || '', prompt: r[1]?.prompt || '' }],
         });
         setAxes(s.axes ? { x: { ...emptyAxis, ...s.axes.x }, y: { ...emptyAxis, ...s.axes.y } } : { x: emptyAxis, y: emptyAxis });
         setCands(s.cands || []); setSelDot(null);
@@ -176,6 +180,8 @@ export default function Admin() {
     arrow: x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null,
     stays: !!x.stays,
     isTest: !!x.is_test,
+    participant_id: x.participant_id || null,
+    round: x.round || 1,
   }));
   const points = showTestStories ? allPoints : allPoints.filter((p) => !p.isTest);
   const { tags, color } = signalColors(points);
@@ -297,6 +303,19 @@ export default function Admin() {
                     {isPrompt && <label className="check"><input type="checkbox" checked={!!form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} /> Hide from menu</label>}
                     <div />
                   </div>
+                  {!isPrompt && (
+                    <>
+                      <label className="check"><input type="checkbox" checked={!!form.twoRounds} onChange={(e) => setForm({ ...form, twoRounds: e.target.checked })} /> Two rounds</label>
+                      {form.twoRounds && [0, 1].map((i) => (
+                        <div key={i} className="stack" style={{ gap: 6, marginTop: 2 }}>
+                          <div className="two">
+                            <input aria-label={`Round ${i + 1} label`} placeholder={i === 0 ? 'Round 1 label (e.g. Goal Hit)' : 'Round 2 label (e.g. Goal Missed)'} value={form.rounds[i].label} onChange={(e) => { const r = [...form.rounds]; r[i] = { ...r[i], label: e.target.value }; setForm({ ...form, rounds: r }); }} />
+                          </div>
+                          <textarea aria-label={`Round ${i + 1} prompt`} rows={2} placeholder={`Round ${i + 1} prompt (shown to writers)`} value={form.rounds[i].prompt} onChange={(e) => { const r = [...form.rounds]; r[i] = { ...r[i], prompt: e.target.value }; setForm({ ...form, rounds: r }); }} />
+                        </div>
+                      ))}
+                    </>
+                  )}
                   <label className="check"><input type="checkbox" checked={!!form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} /> Show on home page (Custom card)</label>
                   {form.featured && (
                     <div><label htmlFor="e-cw">Why line (shown as card tooltip)</label><input id="e-cw" value={form.card_why} onChange={(e) => setForm({ ...form, card_why: e.target.value })} placeholder="Who would pick this card and why" /></div>
@@ -309,6 +328,7 @@ export default function Admin() {
                         minutes: form.minutes,
                         featured: !!form.featured,
                         card_why: form.card_why || '',
+                        rounds: form.twoRounds ? form.rounds : [],
                       };
                       if (isPrompt) {
                         body.big_question = form.big_question;
@@ -483,6 +503,20 @@ export default function Admin() {
                   );
                 })}
               </ul>
+            </section>
+          )}
+          {s && s.rounds && s.rounds.length > 0 && (
+            <section className="panel stack">
+              <h2>Seed pairs</h2>
+              <p className="note">Add a pair of stories (R1 + R2) with a shared participant ID to show round lines before the session starts.</p>
+              <div><label htmlFor="sp-name">Author name</label><input id="sp-name" value={seedForm.name} onChange={(e) => setSeedForm({ ...seedForm, name: e.target.value })} placeholder="Optional" /></div>
+              <div><label htmlFor="sp-r1">Round 1 story</label><textarea id="sp-r1" rows={3} value={seedForm.r1} onChange={(e) => setSeedForm({ ...seedForm, r1: e.target.value })} /></div>
+              <div><label htmlFor="sp-r2">Round 2 story</label><textarea id="sp-r2" rows={3} value={seedForm.r2} onChange={(e) => setSeedForm({ ...seedForm, r2: e.target.value })} /></div>
+              <button disabled={busy || !seedForm.r1.trim() || !seedForm.r2.trim()} onClick={() => act(async () => {
+                await api(`/api/admin/sessions/${s.id}`, 'PATCH', { add_seed_pair: { name: seedForm.name, r1: seedForm.r1, r2: seedForm.r2 } });
+                setSeedForm({ name: '', r1: '', r2: '' });
+                say('Seed pair added.');
+              }, 'Adding seed pair')}>Add seed pair</button>
             </section>
           )}
           <div className={'status' + (status.warn ? ' warn' : '')} role="status">{status.t}</div>
