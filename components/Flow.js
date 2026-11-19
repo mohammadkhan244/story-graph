@@ -220,6 +220,7 @@ export default function Flow({ mode, id }) {
   const clientRoundRef = useRef(1);
   const readingKey = `sm-reading-${mode}-${id}`;
   const questionsKey = `sm-questions-${mode}-${id}`;
+  const isTwoRound = !!(s && s.rounds && s.rounds.length > 0);
 
   async function load() {
     const r = await fetch(base, { cache: 'no-store' });
@@ -425,7 +426,6 @@ export default function Flow({ mode, id }) {
     return true;
   }
 
-  const isTwoRound = !!(s && s.rounds && s.rounds.length > 0);
   const points = useMemo(() => {
     const pts = (map && map.points) || [];
     let result = [...pts];
