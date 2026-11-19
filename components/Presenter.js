@@ -61,6 +61,7 @@ export default function Presenter({ id }) {
   const [mins, setMins] = useState(10);
   const [msg, setMsg] = useState('');
   const [roundFilter, setRoundFilter] = useState('both');
+  const [placing, setPlacing] = useState(false);
 
   const link = typeof window !== 'undefined' ? `${window.location.origin}/s/${id}` : '';
 
@@ -131,6 +132,12 @@ export default function Presenter({ id }) {
   const pts = names ? basePts : basePts.map((p, i) => ({ ...p, label: p.isTest ? 'TEST' : `Story ${i + 1}` }));
 
   async function patch(body) { try { await api(`/api/admin/sessions/${id}`, 'PATCH', body); await load(); } catch (e) { setMsg(e.message); } }
+  async function placeStories() {
+    setPlacing(true); setMsg('');
+    try { await api(`/api/admin/sessions/${id}/place`, 'POST'); await load(); }
+    catch (e) { setMsg(e.message); }
+    finally { setPlacing(false); }
+  }
   async function drawArrow(pid, xy) {
     setDrawFor(null);
     try { await api(`/api/admin/stories/${pid}`, 'PATCH', { arrow: xy }); await load(); } catch (e) { setMsg(e.message); }
@@ -200,8 +207,15 @@ export default function Presenter({ id }) {
                     ? `⏸ ${mmss((s.remainingSeconds || 0) * 1000)}`
                     : open ? (endsAt ? mmss(endsAt - now) : 'Open') : 'Closed'}
                 </span>
-                <span className="note">{d.total} written · {placed} on the map</span>
+                <span className="note">{d.total} written · {placed} on the map{d.unplaced > 0 ? ` · ${d.unplaced} waiting` : ''}</span>
               </div>
+              {d.unplaced > 0 && (
+                <div className="row">
+                  {d.hasAxes
+                    ? <button type="button" onClick={placeStories} disabled={placing}>{placing ? 'Placing…' : `Place ${d.unplaced} stor${d.unplaced === 1 ? 'y' : 'ies'}`}</button>
+                    : <span className="note" style={{ color: 'var(--ruby)' }}>No axes set — go to Admin to set axes before placing.</span>}
+                </div>
+              )}
               <div className="row">
                 <input type="number" min={1} max={60} value={mins} onChange={(e) => setMins(e.target.value)} style={{ width: 80 }} aria-label="Minutes" />
                 <button type="button" onClick={() => patch({ start: true, minutes: mins })}>Start timer</button>
