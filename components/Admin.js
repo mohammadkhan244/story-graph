@@ -633,6 +633,11 @@ export default function Admin() {
                 </div>
               ))}
               {dot.moved && <p className="note">You moved this dot. Claude placed it at {fmt(dot.ox ?? dot.x)}, {fmt(dot.oy ?? dot.y)}.</p>}
+              <Armed label="Delete story" armedLabel="Tap again to delete" onConfirm={() => act(async () => {
+                await api(`/api/admin/stories/${dot.id}`, 'DELETE');
+                setSelDot(null);
+                say('Story deleted.');
+              }, 'Deleting')} />
             </section>
           )}
           {s && !s.is_default && !isPrompt && (
