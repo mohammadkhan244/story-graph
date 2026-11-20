@@ -36,6 +36,23 @@ function Armed({ label, armedLabel, onConfirm, className = 'quiet', disabled }) 
   );
 }
 
+function CollapsiblePanel({ id, title, count, defaultOpen = false, stack = false, children }) {
+  const [isOpen, setIsOpen] = useState(() => {
+    try { const v = localStorage.getItem(`admin-panel-${id}`); return v !== null ? v === 'true' : defaultOpen; }
+    catch { return defaultOpen; }
+  });
+  const toggle = () => { const next = !isOpen; setIsOpen(next); try { localStorage.setItem(`admin-panel-${id}`, String(next)); } catch {} };
+  return (
+    <section className="panel">
+      <button type="button" className="panel-hd" aria-expanded={isOpen} onClick={toggle}>
+        <span>{title}{!isOpen && count != null ? ` · ${count}` : ''}</span>
+        <span className="panel-chev">{isOpen ? '▾' : '▸'}</span>
+      </button>
+      {isOpen && <div className={stack ? 'panel-body stack' : 'panel-body'}>{children}</div>}
+    </section>
+  );
+}
+
 function Login({ configured, onDone }) {
   const [pw, setPw] = useState(''); const [msg, setMsg] = useState('');
   if (!configured) return <section className="panel narrow"><h2>Admin</h2><p>Set <span className="mono">ADMIN_PASSWORD</span> in your Vercel project settings, redeploy, then come back.</p></section>;
@@ -217,8 +234,7 @@ export default function Admin() {
       </header>
       <div className="grid">
         <div className="col">
-          <section className="panel">
-            <h2>Prompts &amp; Sessions</h2>
+          <CollapsiblePanel id="prompts" title="Prompts & Sessions" defaultOpen={false}>
             <ul className="list">
               {list.filter((x) => x.kind !== 'visitor').map((x) => {
                 const tag = x.kind === 'open' && x.slug
@@ -233,30 +249,29 @@ export default function Admin() {
                 );
               })}
             </ul>
-            <details style={{ marginTop: 8 }}>
-              <summary className="note" style={{ cursor: 'pointer' }}>New session</summary>
-              <form className="stack" style={{ marginTop: 10 }} onSubmit={async (e) => {
-                e.preventDefault();
-                try {
-                  const j = await api('/api/admin/sessions', 'POST', { ...nw, signals: textToSignals(nw.signals) });
-                  setNw({ title: '', prompt: '', signals: '', minutes: 10 });
-                  loadedFor.current = null; setSelId(j.id); await loadList();
-                  say('Session created. Copy its link below.');
-                }
-                catch (er) { say(er.message, true); }
-              }}>
-                <div><label htmlFor="n-t">Title</label><input id="n-t" value={nw.title} onChange={(e) => setNw({ ...nw, title: e.target.value })} placeholder="Sensemakers · Nov 3" /></div>
-                <div><label htmlFor="n-p">Prompt</label><textarea id="n-p" rows={3} value={nw.prompt} onChange={(e) => setNw({ ...nw, prompt: e.target.value })} /></div>
-                <div><label htmlFor="n-s">Signals (one per line, or TYPE: text)</label><textarea id="n-s" rows={3} value={nw.signals} onChange={(e) => setNw({ ...nw, signals: e.target.value })} /></div>
-                <div className="two"><div><label htmlFor="n-m">Minutes</label><input id="n-m" type="number" min={1} max={120} value={nw.minutes} onChange={(e) => setNw({ ...nw, minutes: e.target.value })} /></div><div /></div>
-                <div><button type="submit">Create session</button></div>
-              </form>
-            </details>
-          </section>
+          </CollapsiblePanel>
+
+          <CollapsiblePanel id="new-session" title="New session" defaultOpen={false}>
+            <form className="stack" onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const j = await api('/api/admin/sessions', 'POST', { ...nw, signals: textToSignals(nw.signals) });
+                setNw({ title: '', prompt: '', signals: '', minutes: 10 });
+                loadedFor.current = null; setSelId(j.id); await loadList();
+                say('Session created. Copy its link below.');
+              }
+              catch (er) { say(er.message, true); }
+            }}>
+              <div><label htmlFor="n-t">Title</label><input id="n-t" value={nw.title} onChange={(e) => setNw({ ...nw, title: e.target.value })} placeholder="Sensemakers · Nov 3" /></div>
+              <div><label htmlFor="n-p">Prompt</label><textarea id="n-p" rows={3} value={nw.prompt} onChange={(e) => setNw({ ...nw, prompt: e.target.value })} /></div>
+              <div><label htmlFor="n-s">Signals (one per line, or TYPE: text)</label><textarea id="n-s" rows={3} value={nw.signals} onChange={(e) => setNw({ ...nw, signals: e.target.value })} /></div>
+              <div className="two"><div><label htmlFor="n-m">Minutes</label><input id="n-m" type="number" min={1} max={120} value={nw.minutes} onChange={(e) => setNw({ ...nw, minutes: e.target.value })} /></div><div /></div>
+              <div><button type="submit">Create session</button></div>
+            </form>
+          </CollapsiblePanel>
 
           {s && (
-            <section className="panel stack">
-              <h2>{isPrompt ? 'Open prompt' : s.is_default ? 'Default link' : 'This session'}</h2>
+            <CollapsiblePanel id="this-session" title={isPrompt ? 'Open prompt' : s.is_default ? 'Default link' : 'This session'} defaultOpen={true} stack>
               <div className="row">
                 <input readOnly value={link} aria-label="Share link" onFocus={(e) => e.target.select()} />
                 <CopyButton text={link} label="Copy link" />
@@ -347,12 +362,12 @@ export default function Admin() {
                   </div>
                 </div>
               </details>
-            </section>
+            </CollapsiblePanel>
           )}
 
           {s && (
-            <section className="panel">
-              <h2>Stories ({stories.length})</h2>
+            <CollapsiblePanel id="stories" title="Stories" count={stories.length} defaultOpen={false}>
+
               {stories.length === 0 ? <p className="note">Stories appear here as people submit.</p> : stories.map((x) => {
                 const xArrow = x.ax != null && x.ay != null ? { x: x.ax, y: x.ay } : null;
                 const xQs = s.axes && x.x != null ? questions(s.axes, { x: x.x, y: x.y, stays: !!x.stays, arrow: xArrow }) : [];
@@ -380,12 +395,11 @@ export default function Admin() {
                   </details>
                 );
               })}
-            </section>
+            </CollapsiblePanel>
           )}
 
           {s && (
-            <section className="panel stack">
-              <h2>Axes</h2>
+            <CollapsiblePanel id="axes" title="Find axes of these stories" defaultOpen={false} stack>
               <button disabled={busy} onClick={() => act(async () => {
                 const j = await api(`/api/admin/sessions/${s.id}/axes`, 'POST');
                 setCands(j.cands);
@@ -424,15 +438,11 @@ export default function Admin() {
               </div>
               {isPrompt && <p className="note">New stories on open prompts are placed immediately as they come in.</p>}
               {s.is_default && !isPrompt && <p className="note">New stories on the default link are placed one at a time on these axes as they come in.</p>}
-            </section>
+            </CollapsiblePanel>
           )}
           {s && stories.some((x) => x.is_test) && (
-            <section className="panel stack">
-              <h2>Test stories</h2>
-              <p className="note">
-                {stories.filter((x) => x.is_test).length} test {stories.filter((x) => x.is_test).length === 1 ? 'story' : 'stories'}.
-                {' '}Hidden on public maps unless "Show publicly" is on.
-              </p>
+            <CollapsiblePanel id="test-stories" title="Test stories" count={stories.filter((x) => x.is_test).length} defaultOpen={false} stack>
+              <p className="note">Hidden on public maps unless "Show publicly" is on.</p>
               <ul className="list" style={{ marginBottom: 8 }}>
                 {stories.filter((x) => x.is_test).map((x) => (
                   <li key={x.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
@@ -451,7 +461,7 @@ export default function Admin() {
                 const j = await api(`/api/admin/test-stories?session=${s.id}`, 'DELETE');
                 say(`Deleted ${j.deleted} test ${j.deleted === 1 ? 'story' : 'stories'}.`);
               }, 'Deleting')} />
-            </section>
+            </CollapsiblePanel>
           )}
           {visitorSessions.length > 0 && (
             <section className="panel stack">

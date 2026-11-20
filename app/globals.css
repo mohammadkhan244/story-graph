@@ -367,6 +367,11 @@ header.top h1 { font-size: 34px; }
 @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 .col, .stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .panel { background: var(--ink-2); border: 1px solid var(--frame); border-radius: 10px; padding: 16px; min-width: 0; }
+.panel-hd { width: 100%; display: flex; justify-content: space-between; align-items: center; min-height: 44px; background: none; border: none; border-radius: 0; padding: 0; cursor: pointer; color: var(--note); font: 600 12px/1 var(--labelf); letter-spacing: .14em; text-transform: uppercase; }
+.panel-hd:hover:not(:disabled) { transform: none; color: var(--paper); background: none; }
+.panel-chev { font-size: 13px; color: var(--muted); flex-shrink: 0; }
+.panel-body { margin-top: 12px; }
+.panel-body.stack { display: flex; flex-direction: column; gap: 14px; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .status { min-height: 18px; font-size: 13px; color: var(--note); }
 .storytext { white-space: pre-wrap; margin: 0; font: 400 17px/1.6 var(--title); color: var(--label); }
