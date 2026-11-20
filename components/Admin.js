@@ -454,6 +454,10 @@ export default function Admin() {
                       }} />
                       Show publicly
                     </label>
+                    <Armed label="Delete" armedLabel="Confirm" onConfirm={() => act(async () => {
+                      await api(`/api/admin/stories/${x.id}`, 'DELETE');
+                      say('Story deleted.');
+                    }, 'Deleting')} />
                   </li>
                 ))}
               </ul>
