@@ -223,6 +223,8 @@ svg.map.drawing { cursor: crosshair; touch-action: none; }
 .map-qt-btn { background: none; border: 0; padding: 0; cursor: pointer; color: var(--paper); text-align: inherit; font: inherit; display: flex; flex-direction: column; gap: 4px; }
 .map-qt-btn .map-qt-name { border-bottom: 1px dashed var(--frame); }
 .map-hint { margin: 8px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; max-width: 360px; margin: 12px auto 0; padding: 0 8px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--paper); }
 
 @media (max-width: 640px) {
   .map-qt-name { font-size: 16px; }

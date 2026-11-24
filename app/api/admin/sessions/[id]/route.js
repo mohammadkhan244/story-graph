@@ -72,6 +72,14 @@ export async function PATCH(req, { params }) {
       const x = cleanAxis(b.axes.x), y = cleanAxis(b.axes.y);
       if (x && y) put('axes', JSON.stringify({ x, y }));
     }
+    if (b.roles !== undefined) {
+      if (b.roles === null) {
+        put('roles', null);
+      } else if (Array.isArray(b.roles)) {
+        const roles = b.roles.map((r) => String(r || '').trim().slice(0, 50)).filter(Boolean).slice(0, 8);
+        put('roles', roles.length ? JSON.stringify(roles) : null);
+      }
+    }
     if (typeof b.published === 'boolean') put('published', s.is_default ? true : b.published);
     if (b.label_mode === 'names' || b.label_mode === 'anon') put('label_mode', b.label_mode);
     if (typeof b.featured === 'boolean') put('featured', b.featured);

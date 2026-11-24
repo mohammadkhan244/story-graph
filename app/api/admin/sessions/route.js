@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { q, newId } from '@/lib/db';
 import { isAdmin, denied, fail } from '@/lib/auth';
+import { generateAxesForDecision } from '@/lib/claude';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,14 +32,15 @@ export async function POST(req) {
       const title = String(b.title || pr.title).trim().slice(0, 120) || pr.title;
       const minutes = Math.max(1, Math.min(120, parseInt(b.minutes, 10) || 10));
       await q(
-        `insert into sessions (id,title,prompt,signals,minutes,status,axes,kind,big_question,instructions,year,parent_id,ask,scene,label_mode)
-         values ($1,$2,$3,$4,$5,'closed',$6,'session',$7,$8,$9,$10,$11,$12,'anon')`,
+        `insert into sessions (id,title,prompt,signals,minutes,status,axes,kind,big_question,instructions,year,parent_id,ask,scene,label_mode,roles)
+         values ($1,$2,$3,$4,$5,'closed',$6,'session',$7,$8,$9,$10,$11,$12,'anon',$13)`,
         [id, title, pr.prompt, JSON.stringify(pr.signals), minutes,
          pr.axes ? JSON.stringify(pr.axes) : null,
          pr.big_question || '', pr.instructions || '', pr.year || null,
-         pr.id, pr.ask ? JSON.stringify(pr.ask) : null, pr.scene || '']
+         pr.id, pr.ask ? JSON.stringify(pr.ask) : null, pr.scene || '',
+         pr.roles ? JSON.stringify(pr.roles) : null]
       );
-      return NextResponse.json({ id });
+      return NextResponse.json({ id, axes: pr.axes || null });
     }
 
     /* Standard new session */
@@ -46,13 +48,24 @@ export async function POST(req) {
     const prompt = String(b.prompt || '').trim().slice(0, 2000);
     if (!prompt) return NextResponse.json({ error: 'A prompt is required.' }, { status: 400 });
     const signals = cleanSignals(b.signals);
+    const roles = cleanRoles(b.roles);
     const minutes = Math.max(1, Math.min(120, parseInt(b.minutes, 10) || 10));
     const id = newId(8);
     await q(
-      `insert into sessions (id,title,prompt,signals,minutes,status,kind) values ($1,$2,$3,$4,$5,'closed','session')`,
-      [id, title, prompt, JSON.stringify(signals), minutes]
+      `insert into sessions (id,title,prompt,signals,minutes,status,kind,roles) values ($1,$2,$3,$4,$5,'closed','session',$6)`,
+      [id, title, prompt, JSON.stringify(signals), minutes, roles ? JSON.stringify(roles) : null]
     );
-    return NextResponse.json({ id });
+
+    let generatedAxes = null;
+    try {
+      const axesArr = await generateAxesForDecision(prompt);
+      generatedAxes = { x: axesArr[0], y: axesArr[1] };
+      await q('update sessions set axes=$2 where id=$1', [id, JSON.stringify(generatedAxes)]);
+    } catch (e) {
+      console.error('Auto-axes generation failed:', e);
+    }
+
+    return NextResponse.json({ id, axes: generatedAxes });
   } catch (e) { return fail(e); }
 }
 
@@ -63,4 +76,10 @@ function cleanSignals(raw) {
     if (x && typeof x === 'object') return { type: String(x.type || '').trim().slice(0, 40), text: String(x.text || '').trim().slice(0, 400) };
     return null;
   }).filter(Boolean).slice(0, 12);
+}
+
+function cleanRoles(raw) {
+  if (!Array.isArray(raw)) return null;
+  const roles = raw.map((r) => String(r || '').trim().slice(0, 50)).filter(Boolean).slice(0, 8);
+  return roles.length ? roles : null;
 }

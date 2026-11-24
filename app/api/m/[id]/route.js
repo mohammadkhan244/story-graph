@@ -41,6 +41,7 @@ export async function GET(_req, { params }) {
       storyCount: map.points.length,
       ctaSlug,
       map,
+      sessionRoles: Array.isArray(s.roles) ? s.roles : null,
     });
   } catch (e) { return fail(e); }
 }

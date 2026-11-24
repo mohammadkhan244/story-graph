@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useId, useRef, useState } from 'react';
-import { SHAPES } from '@/lib/cards';
+import { SHAPES, DEFAULT_ROLES, ROLE_STYLES, OTHER_ROLE_STYLE } from '@/lib/cards';
 
 const W = 640, H = 640, M = 28;
 const px = (x) => M + ((x + 5) / 10) * (W - 2 * M);
@@ -69,6 +69,36 @@ function spreadOverlaps(points, threshold = 0.4, radius = 0.4) {
   });
 }
 
+function getRoleStyle(role, sessionRoles) {
+  if (!role) return null;
+  if (role.toLowerCase() === 'other') return OTHER_ROLE_STYLE;
+  const roles = sessionRoles || DEFAULT_ROLES;
+  const idx = roles.indexOf(role);
+  if (idx < 0) return ROLE_STYLES[ROLE_STYLES.length - 1];
+  return ROLE_STYLES[Math.min(idx, ROLE_STYLES.length - 1)];
+}
+
+function Legend({ points, sessionRoles }) {
+  const roles = sessionRoles || DEFAULT_ROLES;
+  const usedRoles = roles.filter((r) => points.some((p) => p.role === r));
+  if (!usedRoles.length) return null;
+  return (
+    <div className="map-legend">
+      {usedRoles.map((role) => {
+        const rs = role.toLowerCase() === 'other' ? OTHER_ROLE_STYLE : (ROLE_STYLES[roles.indexOf(role)] || ROLE_STYLES[ROLE_STYLES.length - 1]);
+        return (
+          <span key={role} className="legend-item">
+            <svg width={18} height={18} viewBox="-9 -9 18 18" aria-hidden="true">
+              <Mark shape={rs.shape} r={6} fill={rs.fill} stroke={rs.stroke} sw={1.5} />
+            </svg>
+            {role}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 const TONES = ['#afbeb1', '#d4dfdc', '#79998b', '#b8cdc4', '#8d9d9d'];
 export function signalColors(points) {
   const tags = [];
@@ -87,6 +117,14 @@ export function Mark({ shape, r, fill, stroke, sw = 2, dash }) {
   if (shape === 'diamond') return <polygon points={`0,${-r} ${r},0 0,${r} ${-r},0`} {...common} />;
   if (shape === 'hex') {
     const pts = [0, 1, 2, 3, 4, 5].map((i) => { const a = Math.PI / 3 * i + Math.PI / 6; return `${Math.cos(a) * r},${Math.sin(a) * r}`; }).join(' ');
+    return <polygon points={pts} {...common} />;
+  }
+  if (shape === 'star') {
+    const pts = Array.from({ length: 10 }, (_, i) => { const a = Math.PI / 5 * i - Math.PI / 2; const rr = i % 2 === 0 ? r : r * 0.42; return `${Math.cos(a) * rr},${Math.sin(a) * rr}`; }).join(' ');
+    return <polygon points={pts} {...common} />;
+  }
+  if (shape === 'pentagon') {
+    const pts = [0, 1, 2, 3, 4].map((i) => { const a = Math.PI * 2 / 5 * i - Math.PI / 2; return `${Math.cos(a) * r},${Math.sin(a) * r}`; }).join(' ');
     return <polygon points={pts} {...common} />;
   }
   return <circle r={r} {...common} />;
@@ -135,7 +173,7 @@ function QuadTitle({ qt, side, isMobile }) {
 export default function StoryMap({
   axes, quads, quadrants: quadrantsProp, points = [], background = [], youId, youId2, selId, onSelect, onMove,
   arrowFor, onArrow, showArrows = true, showLabels = true, reveal = false, big = false,
-  pastArrowEnds, whatIfFor, whatIfTo,
+  pastArrowEnds, whatIfFor, whatIfTo, sessionRoles,
 }) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
@@ -331,6 +369,7 @@ export default function StoryMap({
               const testDot = !!p.isTest;
               const hollow = p.source === 'card-exercise';
               const pairDimmed = !!(pairSelIds && !pairSelIds.has(p.id));
+              const rs = !you && !youR2 && !testDot ? getRoleStyle(p.role, sessionRoles) : null;
               const lbl = showLabel(p);
               const labelText = (you || youR2) ? 'YOU' : (p.isTest ? 'TEST' : short(p.label || '', 20));
               const lcx = labelCx(x, labelText) - px(x);
@@ -366,7 +405,11 @@ export default function StoryMap({
                 >
                   <g className="pop">
                     {you ? (
-                      <circle r={13} fill="#a72f39" stroke="#fffdf6" strokeWidth={3} />
+                      rs ? (
+                        <Mark shape={rs.shape} r={13} fill="#a72f39" stroke="#fffdf6" sw={3} />
+                      ) : (
+                        <circle r={13} fill="#a72f39" stroke="#fffdf6" strokeWidth={3} />
+                      )
                     ) : youR2 ? (
                       <circle r={8} fill="none" stroke="#a72f39" strokeWidth={2.5} />
                     ) : testDot ? (
@@ -374,17 +417,17 @@ export default function StoryMap({
                     ) : isR2 ? (
                       <>
                         {p.body != null && <circle r={sel ? 12 : 10} fill="none" stroke="#afbeb1" strokeWidth={1} opacity={0.35} />}
-                        <Mark shape={shape(p.signal)} r={sel ? 8 : 6}
+                        <Mark shape={rs ? rs.shape : shape(p.signal)} r={sel ? 8 : 6}
                           fill="none"
-                          stroke={sel ? '#fffdf6' : '#afbeb1'}
+                          stroke={sel ? '#fffdf6' : (rs ? rs.stroke : '#afbeb1')}
                           sw={1.5} />
                       </>
                     ) : (
                       <>
                         {p.body != null && <circle r={sel ? 16 : 14} fill="none" stroke="#afbeb1" strokeWidth={1.5} opacity={0.45} />}
-                        <Mark shape={shape(p.signal)} r={sel ? 10 : 8}
-                          fill={hollow ? 'none' : '#afbeb1'}
-                          stroke={sel ? '#fffdf6' : '#0c1012'}
+                        <Mark shape={rs ? rs.shape : shape(p.signal)} r={sel ? 10 : 8}
+                          fill={rs ? rs.fill : (hollow ? 'none' : '#afbeb1')}
+                          stroke={sel ? '#fffdf6' : (rs ? rs.stroke : '#0c1012')}
                           sw={2} />
                       </>
                     )}
@@ -432,6 +475,9 @@ export default function StoryMap({
           <QuadTitle qt={qn.br} side="br" isMobile={isMobile} />
         </div>
       )}
+
+      {/* Role legend — only shown when at least one dot has a role */}
+      <Legend points={displayPoints} sessionRoles={sessionRoles} />
 
       {/* Hint text */}
       {onSelect && (

@@ -5,7 +5,7 @@ import ResultCard from './ResultCard';
 import BrandBar from './BrandBar';
 import LoadingBar from './LoadingBar';
 import FictioneeringBlock from './FictioneeringBlock';
-import { artSvg, decision, signalIcon } from '@/lib/cards';
+import { artSvg, decision, signalIcon, DEFAULT_ROLES } from '@/lib/cards';
 import { questions, directionContext } from '@/lib/questions';
 
 function inlineMd(text) {
@@ -166,6 +166,7 @@ export default function Flow({ mode, id }) {
   const [now, setNow] = useState(Date.now());
   const [headline, setHeadline] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState('');
   const [shared, setShared] = useState(false);
   const [hp, setHp] = useState('');
   const [msg, setMsg] = useState('');
@@ -387,7 +388,7 @@ export default function Flow({ mode, id }) {
       const pid = isTwoRound ? (ls.get(pidKey) || (() => { const p = genPid(); ls.set(pidKey, p); return p; })()) : null;
       const r = await fetch(`${base}/stories`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, headline, name, shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp, started_at: startedAt, ...(pid && { participant_id: pid, round: 1 }) }),
+        body: JSON.stringify({ text, headline, name, shared, context, signal: signal ? `${signal.type}: ${signal.text}` : '', website: hp, started_at: startedAt, ...(role && { role }), ...(pid && { participant_id: pid, round: 1 }) }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Could not save your story.');
@@ -757,6 +758,16 @@ export default function Flow({ mode, id }) {
               <label htmlFor="nm">{isSession ? 'Name on the shared screen (optional)' : 'Your name (optional)'}</label>
               <input id="nm" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Leave blank to stay anonymous" />
             </div>
+            {(s.roles || DEFAULT_ROLES).length > 0 && (
+              <div>
+                <label htmlFor="fl-role">Your role (optional)</label>
+                <select id="fl-role" value={role} onChange={(e) => setRole(e.target.value)}
+                  style={{ minHeight: 44, fontSize: 16, padding: '0 12px' }}>
+                  <option value="">—</option>
+                  {(s.roles || DEFAULT_ROLES).map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            )}
             <label className="check"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Let others read my full story on the map (your name shows only if you add one)</label>
             <div className="hp" aria-hidden="true"><input tabIndex={-1} autoComplete="off" value={hp} onChange={(e) => setHp(e.target.value)} /></div>
             <div className="center" style={{ gap: 10, marginTop: 8 }}>
@@ -860,7 +871,8 @@ export default function Flow({ mode, id }) {
                 youId={mine && mine.story.id} youId2={mine2 && mine2.story.id} selId={peek} reveal={reveal}
                 onSelect={(pid) => setPeek(pid === peek ? null : pid)}
                 arrowFor={drawing && mine ? mine.story.id : null} onArrow={setArrow}
-                pastArrowEnds={pastArrows.length ? pastArrows : undefined} />
+                pastArrowEnds={pastArrows.length ? pastArrows : undefined}
+                sessionRoles={s && s.roles} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '8px 4px 2px', flexWrap: 'wrap' }}>
               <p style={{ font: '12px var(--body)', color: 'var(--sage)', margin: 0 }}>● You  → where you'd rather be</p>

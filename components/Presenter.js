@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import StoryMap from './StoryMap';
 import BrandBar from './BrandBar';
 import { questions } from '@/lib/questions';
+import { DEFAULT_ROLES } from '@/lib/cards';
 
 /* The screen you share in the room. Dots arrive live; you reveal them, then let the map drive the talk. */
 function CopyButton({ text, label, className = 'ghost' }) {
@@ -81,6 +82,7 @@ export default function Presenter({ id }) {
           stays: !!x.stays,
           participant_id: x.participant_id || null,
           round: x.round || 1,
+          role: x.role || null,
         }));
       setTestPts(pts);
     } catch {}
@@ -174,7 +176,8 @@ export default function Presenter({ id }) {
               arrowFor={drawFor || (whatIfDrawing ? sel : null)}
               onArrow={drawFor ? drawArrow : whatIfDrawing ? ((_id, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
               whatIfFor={whatIfArrow && sel ? sel : null}
-              whatIfTo={whatIfArrow} />
+              whatIfTo={whatIfArrow}
+              sessionRoles={s.roles || DEFAULT_ROLES} />
           ) : (
             <div className="mapwrap">
               <div className="center" style={{ padding: '120px 20px', gap: 18 }}>

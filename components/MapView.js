@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import StoryMap from './StoryMap';
+import { DEFAULT_ROLES } from '@/lib/cards';
 import ResultCard from './ResultCard';
 import BrandBar from './BrandBar';
 import FictioneeringBlock from './FictioneeringBlock';
@@ -154,6 +155,7 @@ export default function MapView({ id }) {
           onArrow={drawing ? ((_dotId, xy) => { setWhatIfArrow(xy); setWhatIfDrawing(false); }) : undefined}
           whatIfFor={showWi ? sel : null}
           whatIfTo={whatIfArrow}
+          sessionRoles={data.sessionRoles || DEFAULT_ROLES}
         />
 
         {!sel && storyCount > 0 && (

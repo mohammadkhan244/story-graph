@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import StoryMap, { fmt, signalColors } from './StoryMap';
 import { questions, directionLine } from '@/lib/questions';
+import { DEFAULT_ROLES } from '@/lib/cards';
 
 async function api(path, method = 'GET', body) {
   const r = await fetch(path, { method, cache: 'no-store', headers: body ? { 'content-type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -96,7 +97,8 @@ export default function Admin() {
   const [now, setNow] = useState(Date.now());
   const [form, setForm] = useState({ title: '', prompt: '', big_question: '', instructions: '', year: '', signals: '', minutes: 10, featured: false, card_why: '', twoRounds: false, rounds: [{ label: '', prompt: '' }, { label: '', prompt: '' }] });
   const [seedForm, setSeedForm] = useState({ name: '', r1: '', r2: '' });
-  const [nw, setNw] = useState({ title: '', prompt: '', signals: '', minutes: 10 });
+  const [nw, setNw] = useState({ title: '', prompt: '', signals: '', minutes: 10, roles: DEFAULT_ROLES.join('\n') });
+  const [nwCreated, setNwCreated] = useState(null);
   const [axes, setAxes] = useState({ x: emptyAxis, y: emptyAxis });
   const [cands, setCands] = useState([]);
   const [selDot, setSelDot] = useState(null);
@@ -139,6 +141,7 @@ export default function Admin() {
           card_why: s.card_why || '',
           twoRounds: !!(s.rounds && s.rounds.length > 0),
           rounds: [{ label: r[0]?.label || '', prompt: r[0]?.prompt || '' }, { label: r[1]?.label || '', prompt: r[1]?.prompt || '' }],
+          roles: (Array.isArray(s.roles) ? s.roles : DEFAULT_ROLES).join('\n'),
         });
         setAxes(s.axes ? { x: { ...emptyAxis, ...s.axes.x }, y: { ...emptyAxis, ...s.axes.y } } : { x: emptyAxis, y: emptyAxis });
         setCands(s.cands || []); setSelDot(null);
@@ -255,19 +258,62 @@ export default function Admin() {
             <form className="stack" onSubmit={async (e) => {
               e.preventDefault();
               try {
-                const j = await api('/api/admin/sessions', 'POST', { ...nw, signals: textToSignals(nw.signals) });
-                setNw({ title: '', prompt: '', signals: '', minutes: 10 });
+                const roles = nw.roles.split('\n').map((r) => r.trim()).filter(Boolean).slice(0, 8);
+                const j = await api('/api/admin/sessions', 'POST', { ...nw, signals: textToSignals(nw.signals), roles });
+                setNwCreated({ id: j.id, axes: j.axes || null });
+                setNw({ title: '', prompt: '', signals: '', minutes: 10, roles: DEFAULT_ROLES.join('\n') });
                 loadedFor.current = null; setSelId(j.id); await loadList();
-                say('Session created. Copy its link below.');
+                say('Session created. Review the generated axes below.');
               }
               catch (er) { say(er.message, true); }
             }}>
               <div><label htmlFor="n-t">Title</label><input id="n-t" value={nw.title} onChange={(e) => setNw({ ...nw, title: e.target.value })} placeholder="Sensemakers · Nov 3" /></div>
               <div><label htmlFor="n-p">Prompt</label><textarea id="n-p" rows={3} value={nw.prompt} onChange={(e) => setNw({ ...nw, prompt: e.target.value })} /></div>
               <div><label htmlFor="n-s">Signals (one per line, or TYPE: text)</label><textarea id="n-s" rows={3} value={nw.signals} onChange={(e) => setNw({ ...nw, signals: e.target.value })} /></div>
+              <div><label htmlFor="n-rl">Roles (one per line, max 8)</label><textarea id="n-rl" rows={4} value={nw.roles} onChange={(e) => setNw({ ...nw, roles: e.target.value })} /></div>
               <div className="two"><div><label htmlFor="n-m">Minutes</label><input id="n-m" type="number" min={1} max={120} value={nw.minutes} onChange={(e) => setNw({ ...nw, minutes: e.target.value })} /></div><div /></div>
               <div><button type="submit">Create session</button></div>
             </form>
+            {nwCreated && (
+              <div className="stack" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #2a3c40' }}>
+                {nwCreated.axes ? (
+                  <>
+                    <p className="note">Axes generated from your prompt. Edit if needed:</p>
+                    {['x', 'y'].map((k) => (
+                      <div key={k}>
+                        <label style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>
+                          {k === 'x' ? 'Horizontal (← →)' : 'Vertical (↓ ↑)'}
+                        </label>
+                        <div className="two">
+                          <input aria-label={k === 'x' ? 'Left pole' : 'Bottom pole'} placeholder={k === 'x' ? 'Left' : 'Bottom'}
+                            value={nwCreated.axes?.[k]?.low || ''}
+                            onChange={(e) => setNwCreated({ ...nwCreated, axes: { ...nwCreated.axes, [k]: { ...nwCreated.axes?.[k], low: e.target.value } } })} />
+                          <input aria-label={k === 'x' ? 'Right pole' : 'Top pole'} placeholder={k === 'x' ? 'Right' : 'Top'}
+                            value={nwCreated.axes?.[k]?.high || ''}
+                            onChange={(e) => setNwCreated({ ...nwCreated, axes: { ...nwCreated.axes, [k]: { ...nwCreated.axes?.[k], high: e.target.value } } })} />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="row">
+                      <button disabled={busy} onClick={() => act(async () => {
+                        const j2 = await api(`/api/admin/sessions/${nwCreated.id}/axes`, 'POST');
+                        const [i, k] = j2.pair;
+                        setNwCreated((prev) => ({ ...prev, axes: { x: { ...emptyAxis, ...j2.cands[i] }, y: { ...emptyAxis, ...j2.cands[k] } } }));
+                        say('Axes regenerated.');
+                      }, 'Regenerating')}>Regenerate</button>
+                      <button className="ghost" disabled={busy} onClick={() => act(async () => {
+                        await api(`/api/admin/sessions/${nwCreated.id}`, 'PATCH', { axes: nwCreated.axes });
+                        say('Labels saved.');
+                        setNwCreated(null);
+                      }, 'Saving')}>Save labels</button>
+                      <button type="button" className="quiet" onClick={() => setNwCreated(null)}>Done</button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="note">Axes could not be generated automatically. Use "Find axes" after submitting stories.</p>
+                )}
+              </div>
+            )}
           </CollapsiblePanel>
 
           {s && (
@@ -313,6 +359,7 @@ export default function Admin() {
                     <div><label htmlFor="e-yr">Year</label><input id="e-yr" type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
                   </>}
                   <div><label htmlFor="e-s">Signals (one per line, or TYPE: text)</label><textarea id="e-s" rows={6} value={form.signals} onChange={(e) => setForm({ ...form, signals: e.target.value })} /></div>
+                  <div><label htmlFor="e-rl">Roles (one per line, max 8)</label><textarea id="e-rl" rows={4} value={form.roles || ''} onChange={(e) => setForm({ ...form, roles: e.target.value })} /></div>
                   <div className="two">
                     {!isPrompt && <div><label htmlFor="e-m">Minutes</label><input id="e-m" type="number" min={1} max={120} value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /></div>}
                     {isPrompt && <label className="check"><input type="checkbox" checked={!!form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} /> Hide from menu</label>}
@@ -344,6 +391,7 @@ export default function Admin() {
                         featured: !!form.featured,
                         card_why: form.card_why || '',
                         rounds: form.twoRounds ? form.rounds : [],
+                        roles: (form.roles || '').split('\n').map((r) => r.trim()).filter(Boolean).slice(0, 8),
                       };
                       if (isPrompt) {
                         body.big_question = form.big_question;
@@ -563,6 +611,7 @@ export default function Admin() {
                 </div>
               </div>
               <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot}
+                sessionRoles={Array.isArray(s.roles) ? s.roles : DEFAULT_ROLES}
                 onSelect={(pid) => { setSelDot(pid === selDot ? null : pid); }}
                 onMove={(id, x, y) => {
                   setDet({ ...det, stories: stories.map((t) => (t.id === id ? { ...t, x, y, moved: true } : t)) });
