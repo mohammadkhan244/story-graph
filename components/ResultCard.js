@@ -57,10 +57,7 @@ export default function ResultCard({ axes, quadrants, quads, x, y, arrow, kicker
   if (!axes || x == null || y == null) return null;
 
   const qn = normalizeQuads(quadrants, quads);
-  if (!qn) return null;
-
-  const quad = getQuadrant(qn, x, y);
-  if (!quad || !quad.name) return null;
+  const quad = qn ? getQuadrant(qn, x, y) : null;
 
   const nearNote = nearAxisNote(axes, x, y);
   const hasArrow = !!(arrow && arrow.x != null);
@@ -68,8 +65,8 @@ export default function ResultCard({ axes, quadrants, quads, x, y, arrow, kicker
   return (
     <div className="result-card">
       <span className="kicker rc-kicker">{kicker}</span>
-      <h3 className="rc-name">{quad.name}</h3>
-      {quad.meaning && <p className="rc-meaning">{quad.meaning}</p>}
+      {quad?.name && <h3 className="rc-name">{quad.name}</h3>}
+      {quad?.meaning && <p className="rc-meaning">{quad.meaning}</p>}
       {nearNote && <p className="note rc-note">{nearNote}</p>}
 
       <div className="rc-sliders">
