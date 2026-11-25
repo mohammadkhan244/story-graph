@@ -5,6 +5,7 @@ import ResultCard from './ResultCard';
 import BrandBar from './BrandBar';
 import LoadingBar from './LoadingBar';
 import FictioneeringBlock from './FictioneeringBlock';
+import Testimonials from './Testimonials';
 import { artSvg, decision, signalIcon, DEFAULT_ROLES } from '@/lib/cards';
 import { questions, directionContext } from '@/lib/questions';
 
@@ -1198,6 +1199,7 @@ export default function Flow({ mode, id }) {
           </div>
         </section>
       )}
+      {stage === 'end' && <Testimonials />}
     </main>
   );
 }
