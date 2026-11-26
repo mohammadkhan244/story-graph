@@ -59,6 +59,8 @@ button.ghost { background: transparent; color: var(--paper); border-color: var(-
 button.quiet { background: transparent; border-color: var(--frame); color: var(--label); font-weight: 400; }
 button.outline { background: transparent; border: 1px solid var(--paper); color: var(--paper); font: 600 12px/1 var(--labelf); letter-spacing: .1em; font-variant-caps: small-caps; min-height: 44px; padding: 12px 24px; }
 button.outline:hover:not(:disabled) { background: var(--frame); transform: none; }
+button.soft-link { background: none; border: none; padding: 0 4px; min-height: 44px; cursor: pointer; color: var(--steel); font: 400 15px/1 var(--body); text-decoration: none; letter-spacing: 0; text-transform: none; display: inline-flex; align-items: center; border-radius: 0; }
+button.soft-link:hover:not(:disabled) { color: var(--paper); background: none; transform: none; }
 button.armed { background: var(--ruby-site); border-color: var(--ruby-site); color: var(--paper); }
 button.big { padding: 16px 30px; font-size: 16px; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }

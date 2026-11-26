@@ -118,7 +118,6 @@ export default function Home() {
               <div className="deck-actions">
                 <button type="button" className="outline" onClick={next}>Show me other decisions ↻</button>
               </div>
-              <div className="set-dots" aria-hidden="true">{sets.map((_, i) => <span key={i} className={i === set ? 'on' : ''} />)}</div>
             </>
           )}
         </>
@@ -126,8 +125,8 @@ export default function Home() {
       {/* "My decision isn't here" — inline custom decision entry */}
       {cur && !customOpen && (
         <p style={{ textAlign: 'center', marginTop: 20 }}>
-          <button type="button" className="textlink" onClick={() => { setCustomOpen(true); setCustomResult(null); setCustomErr(''); }}>
-            Facing a different decision? Write your own →
+          <button type="button" className="soft-link" onClick={() => { setCustomOpen(true); setCustomResult(null); setCustomErr(''); }}>
+            Facing a different decision? Write your own
           </button>
         </p>
       )}
