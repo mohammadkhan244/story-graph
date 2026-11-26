@@ -414,51 +414,35 @@ footer.foot { max-width: 1000px; margin: 70px auto 0; padding-top: 24px; display
   .sticky-cta a { flex: 1; display: block; text-align: center; padding: 13px; background: var(--ruby-site); color: var(--paper); border-radius: 8px; text-decoration: none; font: 700 15px var(--body); }
 }
 
-/* ---------- testimonials marquee ---------- */
-.tm-section { margin: 48px 0; }
+/* ---------- testimonials ---------- */
 
-.tm-viewport {
-  overflow: hidden;
-  margin-left: -16px;
-  margin-right: -16px;
-}
-
-.tm-reel {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  width: max-content;
-  padding: 8px 16px 16px;
-  animation: tm-scroll 70s linear infinite;
-}
-
-@keyframes tm-scroll {
-  to { transform: translateX(-50%); }
-}
-
+/* shared card */
 .tm-card {
-  flex: 0 0 min(300px, 85vw);
   background: var(--ink-2);
   border: 1px solid var(--frame);
   border-radius: 12px;
-  padding: 24px 28px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  align-self: flex-start;
+  gap: 10px;
 }
 
-.tm-quote { margin: 0; padding: 0; border: none; }
-.tm-quote p { font: 400 18px/1.6 var(--title); color: var(--paper); margin: 0; }
-.tm-quote p + p { margin-top: 12px; }
-
-.tm-byline { display: flex; flex-direction: column; gap: 3px; }
+.tm-photo {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--steel) center/cover no-repeat;
+  flex-shrink: 0;
+}
+.tm-photo-initials {
+  display: flex; align-items: center; justify-content: center;
+  font: 700 20px var(--body); color: var(--frame);
+}
 
 .tm-name {
   font: 600 12px/1.2 var(--labelf);
   letter-spacing: .08em;
   font-variant-caps: small-caps;
   color: var(--label);
+  margin-top: 2px;
 }
 
 .tm-role {
@@ -468,30 +452,89 @@ footer.foot { max-width: 1000px; margin: 70px auto 0; padding-top: 24px; display
   color: var(--muted);
 }
 
+.tm-quote { margin: 4px 0 0; padding: 0; border: none; }
+.tm-quote p { font: 400 18px/1.6 var(--title); color: var(--paper); margin: 0; }
+.tm-quote p + p { margin-top: 12px; }
+
+/* featured strip — one row, equal height */
+.tmfeat-section { margin: 24px 0 32px; }
+.tmfeat-viewport { overflow: hidden; margin: 0 -16px; }
+
+.tmfeat-reel {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  padding: 4px 16px 8px;
+  animation: tmfeat-scroll 50s linear infinite;
+  width: max-content;
+}
+
+@keyframes tmfeat-scroll {
+  to { transform: translateX(-50%); }
+}
+
+.tmfeat-reel .tm-card { flex: 0 0 300px; }
+
+/* wall — columns of equal width, equal height */
+.tmwall-section { margin: 48px 0; }
+.tmwall-viewport { overflow: hidden; margin: 0 -16px; }
+
+.tmwall-reel {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  padding: 8px 16px 16px;
+  animation: tmwall-scroll 40s linear infinite;
+  width: max-content;
+}
+
+@keyframes tmwall-scroll {
+  to { transform: translateX(-50%); }
+}
+
+.tmwall-col {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tmwall-col .tm-card { flex: 1; }
+
+/* mobile */
 @media (max-width: 480px) {
+  .tmfeat-reel .tm-card { flex: 0 0 80vw; }
+  .tmwall-col { flex: 0 0 80vw; }
   .tm-quote p { font-size: 16px; line-height: 1.55; }
 }
 
-/* prefers-reduced-motion: static wrapped grid, original list only */
+/* prefers-reduced-motion: static layouts, hide duplicates */
 @media (prefers-reduced-motion: reduce) {
-  .tm-viewport { margin: 0; }
-  .tm-reel {
-    animation: none;
-    flex-wrap: wrap;
-    width: auto;
-    padding: 0;
-    gap: 12px;
+  .tmfeat-viewport { margin: 0; }
+  .tmfeat-reel {
+    animation: none; flex-wrap: wrap; width: auto; padding: 0; gap: 12px;
+    align-items: flex-start;
   }
-  .tm-reel [data-dup] { display: none; }
-  .tm-card { flex: 1 1 calc(50% - 6px); }
+  .tmfeat-reel [data-dup] { display: none; }
+  .tmfeat-reel .tm-card { flex: 1 1 calc(50% - 6px); }
+
+  .tmwall-viewport { margin: 0; }
+  .tmwall-reel {
+    animation: none; flex-wrap: wrap; width: auto; padding: 0; gap: 20px;
+    align-items: flex-start;
+  }
+  .tmwall-reel [data-dup] { display: none; }
+  .tmwall-col { flex: 1 1 300px; width: auto; }
+  .tmwall-col .tm-card { flex: none; }
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 640px) {
-  .tm-card { flex: 1 1 100%; }
+  .tmfeat-reel .tm-card { flex: 1 1 100%; }
+  .tmwall-col { flex: 1 1 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) and (min-width: 900px) {
-  .tm-card { flex: 1 1 calc(33.33% - 8px); }
+  .tmfeat-reel .tm-card { flex: 1 1 calc(33.33% - 8px); }
 }
 
 /* ---------- two-round controls ---------- */
