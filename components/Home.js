@@ -116,7 +116,7 @@ export default function Home() {
           {sets.length > 1 && (
             <>
               <div className="deck-actions">
-                <button type="button" className="textlink" onClick={next}>Show me other decisions ↻</button>
+                <button type="button" className="outline" onClick={next}>Show me other decisions ↻</button>
               </div>
               <div className="set-dots" aria-hidden="true">{sets.map((_, i) => <span key={i} className={i === set ? 'on' : ''} />)}</div>
             </>
@@ -167,10 +167,7 @@ export default function Home() {
       )}
       {data && data.past.filter(s => !s.archived && s.n > 0).length > 0 && (
         <footer className="foot">
-          <div className="foot-label">
-            <h2 className="foot-head">Past workshops</h2>
-            <p className="foot-desc">Browse the story maps and see where others placed their decisions.</p>
-          </div>
+          <h2 className="foot-head">Browse the story maps of past workshops and see where others place their decisions.</h2>
           <span className="foot-links">
             {data.past.filter(s => !s.archived && s.n > 0).map((s) => (
               <a key={s.id} href={`/m/${s.id}`} className="foot-chip">{s.title}</a>
