@@ -96,35 +96,17 @@ export function TestimonialsFeatured() {
 export function TestimonialsWall() {
   const wall = testimonials.filter(t => !t.featured);
   const cols = packColumns(wall);
-  const reelRef = useRef(null);
-
-  function pause() { if (reelRef.current) reelRef.current.style.animationPlayState = 'paused'; }
-  function resume() { if (reelRef.current) reelRef.current.style.animationPlayState = 'running'; }
 
   if (!cols.length) return null;
 
   return (
-    <section
-      className="tmwall-section"
-      aria-label="More testimonials"
-      onMouseEnter={pause}
-      onMouseLeave={resume}
-      onTouchStart={pause}
-      onTouchEnd={resume}
-    >
-      <div className="tmwall-viewport">
-        <div className="tmwall-reel" ref={reelRef}>
-          {cols.map((col, ci) => (
-            <div key={ci} className="tmwall-col">
-              {col.map((t, ti) => <Card key={ti} t={t} />)}
-            </div>
-          ))}
-          {cols.map((col, ci) => (
-            <div key={'d' + ci} className="tmwall-col" aria-hidden="true" data-dup="">
-              {col.map((t, ti) => <Card key={ti} t={t} />)}
-            </div>
-          ))}
-        </div>
+    <section className="tmwall-section" aria-label="More testimonials">
+      <div className="tmwall-reel">
+        {cols.map((col, ci) => (
+          <div key={ci} className="tmwall-col">
+            {col.map((t, ti) => <Card key={ti} t={t} />)}
+          </div>
+        ))}
       </div>
     </section>
   );
