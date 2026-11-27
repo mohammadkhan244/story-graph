@@ -187,7 +187,7 @@ export default function Admin() {
   const stories = (det && det.stories) || [];
 
   function exportPublicStories() {
-    const pub = stories.filter((st) => st.shared && !st.is_test);
+    const pub = stories.filter((st) => st.shared);
     const data = {
       exported_at: new Date().toISOString(),
       session: {
@@ -643,7 +643,7 @@ export default function Admin() {
                     window.open(link, '_blank');
                   }}>Write a test story →</button>
                   <button type="button" className="ghost" style={{ fontSize: 13 }}
-                    disabled={!stories.some((st) => st.shared && !st.is_test)}
+                    disabled={!stories.some((st) => st.shared)}
                     onClick={exportPublicStories}>Export public stories ↓</button>
                 </div>
               </div>
