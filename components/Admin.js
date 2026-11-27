@@ -185,6 +185,40 @@ export default function Admin() {
 
   const s = det && det.session;
   const stories = (det && det.stories) || [];
+
+  function exportPublicStories() {
+    const pub = stories.filter((st) => st.shared && !st.is_test);
+    const data = {
+      exported_at: new Date().toISOString(),
+      session: {
+        title: s.title,
+        prompt: s.prompt,
+        big_question: s.big_question || null,
+        axes: s.axes || null,
+      },
+      stories: pub.map((st) => ({
+        id: st.id,
+        name: st.name || null,
+        decision_context: st.context || null,
+        signal: st.signal || null,
+        body: st.body,
+        headline: st.headline || null,
+        placement: st.x != null ? { x: st.x, y: st.y } : null,
+        reasoning: { x_axis: st.xw || null, y_axis: st.yw || null },
+        arrow: st.ax != null ? { x: st.ax, y: st.ay } : null,
+        arrow_effect: st.arrow_effect || null,
+        questions: st.questions || null,
+        created_at: st.created_at,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${s.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-stories.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
   const isPrompt = s && s.kind === 'open' && s.slug;
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const link = s ? (isPrompt ? `${origin}/p/${s.slug}` : s.is_default ? `${origin}/` : `${origin}/s/${s.id}`) : '';
@@ -608,6 +642,9 @@ export default function Admin() {
                     if (!testMode) { await api('/api/admin/test-mode', 'POST', { on: true }); setTestMode(true); sessionStorage.setItem('sm_test', '1'); }
                     window.open(link, '_blank');
                   }}>Write a test story →</button>
+                  <button type="button" className="ghost" style={{ fontSize: 13 }}
+                    disabled={!stories.some((st) => st.shared && !st.is_test)}
+                    onClick={exportPublicStories}>Export public stories ↓</button>
                 </div>
               </div>
               <StoryMap axes={s.axes || axes} quads={s.quads} points={points} selId={selDot}

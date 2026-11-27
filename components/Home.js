@@ -76,6 +76,10 @@ export default function Home() {
   return (
     <main>
       <BrandBar />
+      <p style={{ textAlign: 'center', margin: '-8px 0 28px', fontSize: 13, color: 'var(--sage)' }}>
+        Interested in other workshops?{' '}
+        <a href="https://engineering-workshops.themohammadkhan.com/" style={{ color: 'var(--paper)', fontWeight: 600 }}>Explore more →</a>
+      </p>
       <section className="home-head">
         <h1>Test a big decision<br /><span style={{color:"var(--sage)"}}>before you have to live with it.</span></h1>
         <p className="home-subline">A 10-minute writing exercise that shows what spreadsheets miss.</p>
